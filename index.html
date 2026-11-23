@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login - SIMPATIK SFA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+</head>
+<body class="min-h-screen bg-slate-100 flex items-center justify-center p-4">
+  <div class="w-full max-w-md bg-white rounded-2xl shadow-lg border border-slate-200 p-6 sm:p-8">
+    <div class="text-center mb-6">
+      <div class="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600 text-white font-bold text-lg mb-3">
+        SF
+      </div>
+      <h1 class="text-2xl font-bold text-slate-800">SIMPATIK SFA</h1>
+      <p class="text-sm text-slate-500 mt-1">Masuk sesuai peran Admin atau Sales Lapangan</p>
+    </div>
+
+    <div id="alertBox" class="hidden mb-4 p-3 rounded-lg text-sm font-medium"></div>
+
+    <form id="loginForm" class="space-y-4">
+      <div>
+        <label for="usernameInput" class="block text-sm font-medium text-slate-700 mb-1">
+          Username / Kode User
+        </label>
+        <input
+          id="usernameInput"
+          type="text"
+          required
+          autocomplete="username"
+          placeholder="Contoh: admin atau sales1"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+      </div>
+
+      <div>
+        <label for="passwordInput" class="block text-sm font-medium text-slate-700 mb-1">
+          PIN / Password
+        </label>
+        <input
+          id="passwordInput"
+          type="password"
+          required
+          autocomplete="current-password"
+          placeholder="Masukkan PIN atau password"
+          class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+        />
+      </div>
+
+      <button
+        type="submit"
+        id="btnLogin"
+        class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-semibold text-sm transition cursor-pointer"
+      >
+        Masuk ke Aplikasi
+      </button>
+    </form>
+
+    <div class="mt-6 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">
+      <p class="font-semibold text-slate-600">Akun awal otomatis (jika database baru):</p>
+      <p>Admin: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">admin</span> / PIN <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">1234</span></p>
+      <p>Sales: <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">sales1</span> / PIN <span class="font-mono bg-slate-100 px-1.5 py-0.5 rounded">1234</span></p>
+    </div>
+  </div>
+
+  <script>
+    const loginForm = document.getElementById("loginForm");
+    const usernameInput = document.getElementById("usernameInput");
+    const passwordInput = document.getElementById("passwordInput");
+    const alertBox = document.getElementById("alertBox");
+    const btnLogin = document.getElementById("btnLogin");
+
+    function showAlert(message, type = "error") {
+      alertBox.textContent = message;
+      alertBox.className = "mb-4 p-3 rounded-lg text-sm font-medium block ";
+      if (type === "error") {
+        alertBox.className += "bg-red-50 text-red-700 border border-red-200";
+      } else {
+        alertBox.className += "bg-emerald-50 text-emerald-700 border border-emerald-200";
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      try {
+        await AuthHelper.redirectIfAuthenticated();
+      } catch (err) {
+        showAlert("Gagal menginisialisasi database: " + err.message, "error");
+      }
+    });
+
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      btnLogin.disabled = true;
+      btnLogin.textContent = "Memproses...";
+
+      try {
+        const res = await AuthHelper.login(usernameInput.value, passwordInput.value);
+        if (!res.ok) {
+          showAlert(res.message, "error");
+          btnLogin.disabled = false;
+          btnLogin.textContent = "Masuk ke Aplikasi";
+          return;
+        }
+
+        showAlert(`Login berhasil sebagai ${res.user.nama} (${res.user.role}). Mengalihkan...`, "success");
+        setTimeout(() => {
+          window.location.href = res.redirectTo;
+        }, 300);
+      } catch (err) {
+        showAlert("Terjadi kesalahan saat login: " + err.message, "error");
+        btnLogin.disabled = false;
+        btnLogin.textContent = "Masuk ke Aplikasi";
+      }
+    });
+  </script>
+</body>
+</html>
