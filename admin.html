@@ -3,384 +3,473 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Sales Lapangan - SIMPATIK SFA</title>
+  <title>Admin - SIMPATIK SFA</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/db.js"></script>
   <script src="js/auth.js"></script>
-  <script src="js/sales-app.js"></script>
+  <script src="js/master.js"></script>
+  <script src="js/admin-app.js"></script>
 </head>
 <body class="min-h-screen bg-slate-100 text-slate-800 pb-12">
   <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-3">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 class="text-lg font-bold text-slate-900">SIMPATIK SFA — Sales Lapangan</h1>
-        <p id="salesInfo" class="text-xs text-slate-500">Memuat sesi...</p>
+        <h1 class="text-lg font-bold text-slate-900">SIMPATIK SFA — Panel Admin</h1>
+        <p id="adminInfo" class="text-xs text-slate-500">Memuat sesi...</p>
       </div>
-      <button id="btnLogout" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer">
-        Keluar
-      </button>
+      <div class="flex items-center gap-2">
+        <button id="btnReseed" type="button" class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer">
+          Sinkronkan Seed Default
+        </button>
+        <button id="btnLogout" type="button" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer">
+          Keluar
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-4 py-5 space-y-5">
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
     <div id="notifBox" class="hidden p-3 rounded-xl text-sm font-medium"></div>
 
-    <!-- PANEL 1: BUKA SHIFT AWAL (PILIH ASISTEN, MOBIL, DJO) -->
-    <section id="openShiftSection" class="hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-      <h2 class="text-base font-bold mb-1">Mulai Tugas Lapangan (Buka Shift DJO)</h2>
-      <p class="text-xs text-slate-500 mb-4">Pilih nama asisten, mobil yang tersedia, dan DJO yang akan dijalankan hari ini.</p>
+    <!-- Navigasi Tab Utama Admin -->
+    <div class="flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+      <button data-tab="monitoring" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white cursor-pointer">
+        Monitoring DJO & EC
+      </button>
+      <button data-tab="piutang" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Piutang Toko
+      </button>
+      <button data-tab="products" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Produk & Harga
+      </button>
+      <button data-tab="outlets" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Toko / Outlet
+      </button>
+      <button data-tab="vehicles" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Kendaraan, Servis & Surat
+      </button>
+      <button data-tab="users" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Pengguna / Sales
+      </button>
+      <button data-tab="refs" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Alasan & Kategori Biaya
+      </button>
+    </div>
 
-      <form id="formOpenShift" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Nama Asisten Pendamping *</label>
-          <input id="asisten_nama" list="listAsisten" required placeholder="Ketik atau pilih nama asisten" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-          <datalist id="listAsisten"></datalist>
+    <!-- TAB 0: MONITORING DJO, EC, AUDIT STOK & EKSPOR EXCEL -->
+    <section id="tab-monitoring" class="tab-panel space-y-5">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div class="flex flex-wrap items-end justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-base font-bold">Pemantauan Shift DJO, EC, Cost Ratio & Pindah Jadwal</h2>
+            <p class="text-xs text-slate-500">Pilih salah satu sesi DJO untuk melihat audit detail atau ekspor ke Excel.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <input id="filterTanggal" type="date" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs" />
+            <input id="filterDjo" placeholder="Filter Kode DJO" class="px-3 py-1.5 rounded-xl border border-slate-300 text-xs" />
+            <button id="btnFilterShift" type="button" class="px-3 py-1.5 rounded-xl bg-slate-800 text-white text-xs font-semibold cursor-pointer">
+              Terapkan Filter
+            </button>
+          </div>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Mobil Tersedia *</label>
-          <select id="shift_vehicle_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">Tanggal</th>
+                <th class="py-2 pr-3">DJO</th>
+                <th class="py-2 pr-3">Sales & Asisten</th>
+                <th class="py-2 pr-3">Status</th>
+                <th class="py-2">Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyShifts" class="divide-y divide-slate-100"></tbody>
+          </table>
         </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Pilih DJO Hari Ini *</label>
-          <input id="shift_kode_djo" list="listDjo" required placeholder="Pilih atau ketik kode DJO" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-          <datalist id="listDjo"></datalist>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">Tanggal</label>
-          <input id="shift_tanggal" type="date" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-slate-600 mb-1">KM Awal Kendaraan</label>
-          <input id="shift_km_awal" type="number" min="0" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-        </div>
-        <div class="flex items-end">
-          <button type="submit" class="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
-            Mulai Operasional DJO
-          </button>
-        </div>
-      </form>
+      </div>
+
+      <!-- Detail Audit Shift Terpilih -->
+      <div id="shiftAuditDetail" class="hidden space-y-4"></div>
     </section>
 
-    <!-- PANEL 2: WORKSPACE AKTIF SALES -->
-    <section id="activeWorkspace" class="hidden space-y-5">
-      <!-- Info Shift Aktif & Opsi Pindah Jadwal -->
-      <div class="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2">
-            <span class="px-2.5 py-0.5 rounded-lg bg-blue-100 text-blue-800 text-xs font-bold" id="badgeDjo">DJO</span>
-            <span class="text-sm font-bold text-slate-900" id="lblShiftMeta">-</span>
+    <!-- TAB PIUTANG TOKO -->
+    <section id="tab-piutang" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-base font-bold">Rekap Piutang Aktif Toko (Kredit Penuh)</h2>
+          <div id="totalPiutangBadge" class="px-3 py-1 rounded-xl bg-amber-100 text-amber-800 text-xs font-bold">Total: Rp 0</div>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs sm:text-sm border-collapse">
+            <thead>
+              <tr class="border-b border-slate-200 text-slate-500">
+                <th class="py-2 pr-3">Kode</th>
+                <th class="py-2 pr-3">Nama Toko</th>
+                <th class="py-2 pr-3">Tier</th>
+                <th class="py-2 pr-3">Limit Kredit</th>
+                <th class="py-2">Sisa Piutang Aktif</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyDebts" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 1: PRODUK -->
+    <section id="tab-products" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Produk (Harga per Bungkus)</h2>
+        <form id="formProduct" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="prod_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode SKU *</label>
+            <input id="sku_kode" required placeholder="SKU-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
           </div>
-          <p class="text-xs text-slate-500 mt-1" id="lblShiftSub">-</p>
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <button id="btnTogglePindahJadwal" type="button" class="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold cursor-pointer">
-            Pindah Jadwal DJO / Toko
-          </button>
-        </div>
-      </div>
-
-      <!-- Modal / Panel Pindah Jadwal -->
-      <div id="panelPindahJadwal" class="hidden bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-4">
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <form id="formPindahDjo" class="bg-white p-4 rounded-xl border border-amber-200 space-y-2.5">
-            <h3 class="text-sm font-bold text-slate-800">1. Pindah DJO Aktif Hari Ini</h3>
-            <input id="pindah_djo_tujuan" required placeholder="Kode DJO Tujuan (misal: DJO-02)" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm" />
-            <input id="pindah_djo_alasan" required placeholder="Alasan pindah DJO" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm" />
-            <button type="submit" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold cursor-pointer">Simpan Pindah DJO</button>
-          </form>
-
-          <form id="formPindahToko" class="bg-white p-4 rounded-xl border border-amber-200 space-y-2.5">
-            <h3 class="text-sm font-bold text-slate-800">2. Pindah Jadwal Kunjungan Toko</h3>
-            <select id="pindah_toko_id" required class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm"></select>
-            <div class="grid grid-cols-2 gap-2">
-              <input id="pindah_toko_djo" required placeholder="DJO Tujuan" class="px-3 py-2 rounded-lg border border-slate-300 text-sm" />
-              <input id="pindah_toko_tgl" type="date" required class="px-3 py-2 rounded-lg border border-slate-300 text-sm" />
-            </div>
-            <input id="pindah_toko_alasan" required placeholder="Alasan pindah jadwal toko" class="w-full px-3 py-2 rounded-lg border border-slate-300 text-sm" />
-            <button type="submit" class="px-3 py-2 rounded-lg bg-amber-600 text-white text-xs font-semibold cursor-pointer">Catat Pindah Jadwal Toko</button>
-          </form>
-        </div>
-      </div>
-
-      <!-- Navigasi Tab Operasional Sales -->
-      <div class="flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
-        <button data-stab="kunjungan" class="stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white cursor-pointer">
-          Transaksi & Kunjungan
-        </button>
-        <button data-stab="retur" class="stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
-          Retur Tukar Barang
-        </button>
-        <button data-stab="piutang" class="stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
-          Bayar Kredit & Biaya
-        </button>
-        <button data-stab="stok" class="stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
-          Stok Mobil
-        </button>
-        <button data-stab="laporan" class="stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
-          Laporan & Tutup Hari
-        </button>
-      </div>
-
-      <!-- SUB-TAB 1: TRANSAKSI & KUNJUNGAN -->
-      <div id="stab-kunjungan" class="stab-panel grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- Form Penjualan -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-          <h3 class="text-base font-bold">Input Penjualan Toko (EC)</h3>
-          <form id="formSale" class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Pilih Toko *</label>
-              <select id="sale_outlet_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-              <p id="sale_outlet_info" class="text-xs text-blue-700 mt-1"></p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Pilih Produk *</label>
-              <select id="sale_product_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Jumlah (Karton | Bal | Slop | Bungkus)</label>
-              <div class="grid grid-cols-4 gap-2">
-                <input id="sale_karton" type="number" min="0" value="0" placeholder="Karton" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="sale_bal" type="number" min="0" value="0" placeholder="Bal" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="sale_slop" type="number" min="0" value="0" placeholder="Slop" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="sale_bungkus" type="number" min="0" value="0" placeholder="Bks" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-              </div>
-              <p id="sale_preview" class="text-xs font-semibold text-emerald-700 mt-1">Total: 0 bungkus — Rp 0</p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Metode Pembayaran *</label>
-              <select id="sale_metode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                <option value="cash">Cash (Tunai)</option>
-                <option value="transfer">Transfer</option>
-                <option value="kredit">Kredit (Piutang Penuh)</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Catatan</label>
-              <input id="sale_catatan" placeholder="Opsional" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            </div>
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
-              Simpan Nota Penjualan
-            </button>
-          </form>
-        </div>
-
-        <!-- Form Kunjungan Tidak Beli -->
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-          <h3 class="text-base font-bold">Catat Kunjungan Tanpa Order (Non-Beli)</h3>
-          <form id="formNoOrder" class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Pilih Toko *</label>
-              <select id="noorder_outlet_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Alasan Tidak Order *</label>
-              <select id="noorder_reason_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Catatan Tambahan</label>
-              <input id="noorder_catatan" placeholder="Keterangan lapangan" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            </div>
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold cursor-pointer">
-              Simpan Laporan Kunjungan
-            </button>
-          </form>
-        </div>
-      </div>
-
-      <!-- SUB-TAB 2: RETUR TUKAR BARANG -->
-      <div id="stab-retur" class="stab-panel hidden bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-        <h3 class="text-base font-bold mb-1">Retur Tukar Barang & Selisih Harga</h3>
-        <p class="text-xs text-slate-500 mb-4">Bisa tukar sejenis atau beda varian. Barang kondisi bagus otomatis kembali ke stok jual mobil.</p>
-        <form id="formRetur" class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Toko yang Retur *</label>
-              <select id="ret_outlet_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Produk yang Diretur Toko *</label>
-              <select id="ret_prod_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Qty Retur (Karton | Bal | Slop | Bungkus)</label>
-              <div class="grid grid-cols-4 gap-2">
-                <input id="ret_karton" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ret_bal" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ret_slop" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ret_bungkus" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Kondisi Barang Retur</label>
-              <select id="ret_kondisi" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                <option value="bagus">Bagus (Langsung masuk stok jual mobil)</option>
-                <option value="rusak">Rusak / Tidak layak jual</option>
-              </select>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Produk *</label>
+            <input id="nama_produk" required placeholder="Nama produk" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kategori / Lini</label>
+            <input id="kategori_lini" placeholder="SKM / LTT / dll" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+            <select id="prod_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Ritel / Bungkus (Rp)</label>
+            <input id="harga_ritel" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Grosir / Bungkus (Rp)</label>
+            <input id="harga_grosir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Star Outlet / Bungkus (Rp)</label>
+            <input id="harga_star_outlet" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Konversi (Bal/Ktn | Slop/Bal | Bks/Slop)</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <input id="bal_per_karton" type="number" min="1" value="4" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
+              <input id="slop_per_bal" type="number" min="1" value="20" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
+              <input id="isi_per_slop" type="number" min="1" value="10" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
             </div>
           </div>
-
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Produk Pengganti dari Mobil *</label>
-              <select id="ganti_prod_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Qty Pengganti (Karton | Bal | Slop | Bungkus)</label>
-              <div class="grid grid-cols-4 gap-2">
-                <input id="ganti_karton" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ganti_bal" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ganti_slop" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-                <input id="ganti_bungkus" type="number" min="0" value="0" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Metode Penyelesaian Selisih</label>
-              <select id="ret_metode_selisih" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                <option value="cash">Cash (Tunai)</option>
-                <option value="transfer">Transfer</option>
-              </select>
-            </div>
-            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs space-y-1" id="ret_preview">
-              Preview selisih retur akan muncul otomatis di sini.
-            </div>
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
-              Simpan Retur & Tukar Barang
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Produk
+            </button>
+            <button type="button" id="btnResetProduct" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
             </button>
           </div>
         </form>
       </div>
 
-      <!-- SUB-TAB 3: PELUNASAN KREDIT & BIAYA OPERASIONAL -->
-      <div id="stab-piutang" class="stab-panel hidden grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-          <h3 class="text-base font-bold">Pembayaran / Pelunasan Kredit Toko</h3>
-          <form id="formDebtPay" class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Pilih Toko *</label>
-              <select id="debt_outlet_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-              <p id="debt_outlet_saldo" class="text-xs text-amber-700 mt-1"></p>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Nominal Bayar (Rp) *</label>
-              <input id="debt_nominal" type="number" min="1" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Metode Pembayaran *</label>
-              <select id="debt_metode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                <option value="cash">Cash (Tunai)</option>
-                <option value="transfer">Transfer</option>
-              </select>
-            </div>
-            <input id="debt_catatan" placeholder="Catatan pelunasan (opsional)" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold cursor-pointer">
-              Simpan Pembayaran Kredit
-            </button>
-          </form>
-        </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Produk</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">SKU</th>
+              <th class="py-2 pr-3">Nama Produk</th>
+              <th class="py-2 pr-3">Ritel/Bks</th>
+              <th class="py-2 pr-3">Grosir/Bks</th>
+              <th class="py-2 pr-3">SO/Bks</th>
+              <th class="py-2 pr-3">Status</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProducts" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
 
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-3">
-          <h3 class="text-base font-bold">Biaya Operasional Harian</h3>
-          <form id="formExpense" class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Kategori Biaya *</label>
-              <select id="exp_cat_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Nominal (Rp) *</label>
-              <input id="exp_nominal" type="number" min="1" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Sumber Dana</label>
-              <select id="exp_metode" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
-                <option value="cash">Potong Kas Tunai (Cash)</option>
-                <option value="transfer">Transfer / Non-Tunai</option>
-              </select>
-            </div>
-            <input id="exp_ket" placeholder="Keterangan biaya" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            <button type="submit" class="w-full py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-sm font-semibold cursor-pointer">
-              Simpan Biaya Operasional
+    <!-- TAB 2: TOKO / OUTLET -->
+    <section id="tab-outlets" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Toko / Outlet</h2>
+        <form id="formOutlet" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="outlet_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Toko *</label>
+            <input id="kode_toko" required placeholder="TKO-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Toko *</label>
+            <input id="nama_toko" required placeholder="Nama toko" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Tier Harga</label>
+            <select id="tier_harga" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="ritel">ritel</option>
+              <option value="grosir">grosir</option>
+              <option value="star_outlet">star_outlet</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode DJO Utama</label>
+            <input id="kode_djo" placeholder="DJO-01" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Jadwal Hari (pisah koma)</label>
+            <input id="jadwal_hari" placeholder="Senin, Kamis" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Latitude GPS</label>
+            <input id="lat" type="number" step="any" placeholder="-3.80..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Longitude GPS</label>
+            <input id="lng" type="number" step="any" placeholder="114.77..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Limit Kredit (Rp)</label>
+            <input id="limit_kredit" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div class="sm:col-span-2 lg:col-span-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Alamat</label>
+            <input id="alamat" placeholder="Alamat lengkap toko" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div class="flex items-end gap-2">
+            <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 pb-2">
+              <input id="izinkan_kredit" type="checkbox" class="rounded border-slate-300" />
+              Izinkan Kredit
+            </label>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Toko
             </button>
-          </form>
-        </div>
+            <button type="button" id="btnResetOutlet" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
+            </button>
+          </div>
+        </form>
       </div>
 
-      <!-- SUB-TAB 4: STOK MOBIL (LOADING AWAL & SISA STOK) -->
-      <div id="stab-stok" class="stab-panel hidden space-y-5">
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
-          <h3 class="text-base font-bold mb-3">Input Loading Stok Awal Kendaraan</h3>
-          <form id="formLoading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
-            <div class="lg:col-span-2">
-              <label class="block text-xs font-medium text-slate-600 mb-1">Produk *</label>
-              <select id="load_prod_id" required class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm"></select>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Karton</label>
-              <input id="load_karton" type="number" min="0" value="0" class="w-full px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Bal</label>
-              <input id="load_bal" type="number" min="0" value="0" class="w-full px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Slop</label>
-              <input id="load_slop" type="number" min="0" value="0" class="w-full px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">Bungkus</label>
-              <input id="load_bungkus" type="number" min="0" value="0" class="w-full px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
-            </div>
-            <div class="sm:col-span-2 lg:col-span-6">
-              <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
-                Tambah Stok Loading
-              </button>
-            </div>
-          </form>
-        </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Toko / Outlet</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Kode</th>
+              <th class="py-2 pr-3">Nama Toko</th>
+              <th class="py-2 pr-3">Tier</th>
+              <th class="py-2 pr-3">DJO / Hari</th>
+              <th class="py-2 pr-3">GPS</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOutlets" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
 
-        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
-          <h3 class="text-sm font-bold mb-3">Rekap Pergerakan & Sisa Stok Kendaraan</h3>
-          <table class="w-full text-left text-xs sm:text-sm border-collapse">
-            <thead>
-              <tr class="border-b border-slate-200 text-slate-500">
-                <th class="py-2 pr-3">Produk</th>
-                <th class="py-2 pr-3">Loading</th>
-                <th class="py-2 pr-3">Retur Masuk</th>
-                <th class="py-2 pr-3">Keluar (Jual+Ganti)</th>
-                <th class="py-2">Sisa Stok Mobil</th>
-              </tr>
-            </thead>
-            <tbody id="tbodyStock" class="divide-y divide-slate-100"></tbody>
-          </table>
-        </div>
+    <!-- TAB 3: KENDARAAN, SERVIS & SURAT-MENYURAT -->
+    <section id="tab-vehicles" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Kendaraan, Jadwal Servis & Surat-Menyurat</h2>
+        <form id="formVehicle" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="vehicle_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Kendaraan *</label>
+            <input id="kode_kendaraan" required placeholder="VEH-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Plat Nomor *</label>
+            <input id="plat_nomor" required placeholder="DA 1234 XY" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Kendaraan</label>
+            <input id="nama_kendaraan" placeholder="Pickup / Box / Motor" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KM Terakhir</label>
+            <input id="km_terakhir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KM Servis Terakhir</label>
+            <input id="km_servis_terakhir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Interval KM Servis</label>
+            <input id="interval_km_servis" type="number" min="100" value="5000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Tanggal Servis Berikutnya</label>
+            <input id="tanggal_servis_berikutnya" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">STNK Tahunan</label>
+            <input id="stnk_tahunan" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">STNK 5 Tahunan</label>
+            <input id="stnk_lima_tahunan" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KIR Berlaku Sampai</label>
+            <input id="kir_berlaku_sampai" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Asuransi Berlaku Sampai</label>
+            <input id="asuransi_berlaku_sampai" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status Kendaraan</label>
+            <select id="veh_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="perbaikan">perbaikan</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Kendaraan
+            </button>
+            <button type="button" id="btnResetVehicle" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
+            </button>
+          </div>
+        </form>
       </div>
 
-      <!-- SUB-TAB 5: LAPORAN HARIAN SALES & TUTUP SHIFT -->
-      <div id="stab-laporan" class="stab-panel hidden space-y-5">
-        <div id="salesReportContainer" class="space-y-4"></div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Monitoring Armada (Servis & Surat-Menyurat)</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Armada</th>
+              <th class="py-2 pr-3">KM</th>
+              <th class="py-2 pr-3">Status Servis & Surat</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyVehicles" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
 
-        <div class="bg-white rounded-2xl border border-red-200 p-5 shadow-sm">
-          <h3 class="text-base font-bold text-red-700 mb-2">Tutup Shift & Catat KM Akhir</h3>
-          <form id="formCloseShift" class="flex flex-wrap items-end gap-3">
-            <div>
-              <label class="block text-xs font-medium text-slate-600 mb-1">KM Akhir Kendaraan *</label>
-              <input id="close_km_akhir" type="number" min="0" required class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
-            </div>
-            <button type="submit" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold cursor-pointer">
-              Selesaikan & Tutup Shift DJO
+    <!-- TAB 4: USERS -->
+    <section id="tab-users" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Pengguna (Admin / Sales)</h2>
+        <form id="formUser" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="usr_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode User *</label>
+            <input id="kode_user" required placeholder="USR-SALES-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Lengkap *</label>
+            <input id="usr_nama" required placeholder="Nama lengkap" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Username *</label>
+            <input id="usr_username" required placeholder="sales2" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">PIN / Password</label>
+            <input id="usr_pin" placeholder="1234" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Role</label>
+            <select id="usr_role" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="sales">sales</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Rute</label>
+            <input id="usr_rute" placeholder="RUTE-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+            <select id="usr_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+          <div class="flex items-end gap-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan User
             </button>
-          </form>
-        </div>
+            <button type="button" id="btnResetUser" class="px-3 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 cursor-pointer">
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Pengguna</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Kode</th>
+              <th class="py-2 pr-3">Nama</th>
+              <th class="py-2 pr-3">Username</th>
+              <th class="py-2 pr-3">Role</th>
+              <th class="py-2 pr-3">Rute</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyUsers" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: ALASAN TIDAK BELI & KATEGORI BIAYA -->
+    <section id="tab-refs" class="tab-panel hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <h2 class="text-base font-bold">Alasan Tidak Beli (EC)</h2>
+        <form id="formReason" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="kode_alasan" required placeholder="KODE_ALASAN" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <input id="label_alasan" required placeholder="Label alasan di lapangan" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+            <input id="dihitung_kunjungan_valid" type="checkbox" checked class="rounded border-slate-300" />
+            Dihitung sebagai kunjungan valid (EC)
+          </label>
+          <div>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Tambah Alasan
+            </button>
+          </div>
+        </form>
+        <ul id="listReasons" class="divide-y divide-slate-100 text-xs sm:text-sm"></ul>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <h2 class="text-base font-bold">Kategori Biaya Operasional</h2>
+        <form id="formExpenseCat" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="kode_biaya" required placeholder="KODE_BIAYA" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <input id="nama_biaya" required placeholder="Nama kategori biaya" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Tambah Kategori Biaya
+            </button>
+          </div>
+        </form>
+        <ul id="listExpenseCats" class="divide-y divide-slate-100 text-xs sm:text-sm"></ul>
       </div>
     </section>
   </main>
 
   <script>
-    let currentSession = null;
-    let activeShift = null;
-    let cachedProducts = [];
-    let cachedOutlets = [];
-
     const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
     function showNotif(msg, type = "success") {
@@ -392,447 +481,460 @@
         : "bg-emerald-50 text-emerald-700 border border-emerald-200";
     }
 
-    document.querySelectorAll(".stab-btn").forEach((btn) => {
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
-        document.querySelectorAll(".stab-btn").forEach((b) => {
-          b.className = "stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer";
+        document.querySelectorAll(".tab-btn").forEach((b) => {
+          b.className = "tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer";
         });
-        btn.className = "stab-btn px-3.5 py-2 rounded-xl text-xs sm:text-sm font-semibold bg-blue-600 text-white cursor-pointer";
+        btn.className = "tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white cursor-pointer";
 
-        document.querySelectorAll(".stab-panel").forEach((p) => p.classList.add("hidden"));
-        document.getElementById("stab-" + btn.dataset.stab).classList.remove("hidden");
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+        document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
       });
     });
 
-    async function loadSetupOptions() {
-      const vehicles = await db.vehicles.where("status_aktif").equals("aktif").toArray();
-      const users = await db.users.where("status_aktif").equals("aktif").toArray();
-      const outlets = await db.outlets.toArray();
+    window.inspectShift = async (shiftId) => {
+      const audit = await AdminApp.getShiftAudit(shiftId);
+      if (!audit) return;
+      const box = document.getElementById("shiftAuditDetail");
+      box.classList.remove("hidden");
+      const k = audit.kpi;
+      const f = audit.keuangan;
 
-      document.getElementById("listAsisten").innerHTML = users
-        .map((u) => `<option value="${u.nama}"></option>`)
-        .join("");
-
-      const selVeh = document.getElementById("shift_vehicle_id");
-      selVeh.innerHTML = vehicles
-        .map((v) => `<option value="${v.id}" data-km="${v.km_terakhir || 0}">${v.plat_nomor} — ${v.nama_kendaraan || v.kode_kendaraan}</option>`)
-        .join("");
-
-      if (vehicles.length > 0) {
-        document.getElementById("shift_km_awal").value = vehicles[0].km_terakhir || 0;
-      }
-
-      selVeh.addEventListener("change", () => {
-        const opt = selVeh.options[selVeh.selectedIndex];
-        document.getElementById("shift_km_awal").value = opt?.dataset?.km || 0;
-      });
-
-      const djoSet = new Set(outlets.map((o) => o.kode_djo).filter(Boolean));
-      document.getElementById("listDjo").innerHTML = [...djoSet]
-        .map((d) => `<option value="${d}"></option>`)
-        .join("");
-
-      document.getElementById("shift_tanggal").value = new Date().toISOString().slice(0, 10);
-    }
-
-    function updateSalePreview() {
-      const outlet = cachedOutlets.find((o) => Number(o.id) === Number(document.getElementById("sale_outlet_id").value));
-      const prod = cachedProducts.find((p) => Number(p.id) === Number(document.getElementById("sale_product_id").value));
-      if (!outlet || !prod) return;
-
-      document.getElementById("sale_outlet_info").textContent =
-        `Tier: ${outlet.tier_harga.toUpperCase()} | Kredit: ${outlet.izinkan_kredit ? "Ya" : "Tidak"} | Piutang aktif: ${fmtRp(outlet.sisa_piutang_aktif)}`;
-
-      const qtyBks = UnitConverter.toBungkus({
-        karton: document.getElementById("sale_karton").value,
-        bal: document.getElementById("sale_bal").value,
-        slop: document.getElementById("sale_slop").value,
-        bungkus: document.getElementById("sale_bungkus").value
-      }, prod);
-
-      const harga = PricingHelper.getHargaPerBungkus(prod, outlet.tier_harga);
-      document.getElementById("sale_preview").textContent =
-        `Total: ${qtyBks} bungkus (${UnitConverter.formatLabel(qtyBks, prod)}) × ${fmtRp(harga)} = ${fmtRp(qtyBks * harga)}`;
-    }
-
-    function updateReturPreview() {
-      const outlet = cachedOutlets.find((o) => Number(o.id) === Number(document.getElementById("ret_outlet_id").value));
-      const prodR = cachedProducts.find((p) => Number(p.id) === Number(document.getElementById("ret_prod_id").value));
-      const prodG = cachedProducts.find((p) => Number(p.id) === Number(document.getElementById("ganti_prod_id").value));
-      if (!outlet || !prodR || !prodG) return;
-
-      const qtyR = UnitConverter.toBungkus({
-        karton: document.getElementById("ret_karton").value,
-        bal: document.getElementById("ret_bal").value,
-        slop: document.getElementById("ret_slop").value,
-        bungkus: document.getElementById("ret_bungkus").value
-      }, prodR);
-
-      const qtyG = UnitConverter.toBungkus({
-        karton: document.getElementById("ganti_karton").value,
-        bal: document.getElementById("ganti_bal").value,
-        slop: document.getElementById("ganti_slop").value,
-        bungkus: document.getElementById("ganti_bungkus").value
-      }, prodG);
-
-      const valR = qtyR * PricingHelper.getHargaPerBungkus(prodR, outlet.tier_harga);
-      const valG = qtyG * PricingHelper.getHargaPerBungkus(prodG, outlet.tier_harga);
-      const calc = PricingHelper.hitungSelisihRetur(valR, valG);
-
-      let statusTxt = "Impas (Rp 0)";
-      if (calc.tipe_selisih === "bayar_toko") statusTxt = `Dibayar Toko: ${fmtRp(calc.selisih_nominal)}`;
-      if (calc.tipe_selisih === "ganti_sales") statusTxt = `Diganti Sales: ${fmtRp(calc.selisih_nominal)}`;
-
-      document.getElementById("ret_preview").innerHTML = `
-        <div>Nilai Retur: <strong>${fmtRp(valR)}</strong> (${qtyR} bks)</div>
-        <div>Nilai Pengganti: <strong>${fmtRp(valG)}</strong> (${qtyG} bks)</div>
-        <div class="text-blue-700 font-bold">Selisih: ${statusTxt}</div>
-      `;
-    }
-
-    async function refreshWorkspace() {
-      cachedProducts = await db.products.where("status_aktif").equals("aktif").toArray();
-      cachedOutlets = await db.outlets.toArray();
-      const reasons = await db.no_order_reasons.where("status_aktif").equals("aktif").toArray();
-      const expCats = await db.expense_categories.where("status_aktif").equals("aktif").toArray();
-      const veh = await db.vehicles.get(Number(activeShift.vehicle_id));
-
-      document.getElementById("badgeDjo").textContent = activeShift.kode_djo;
-      document.getElementById("lblShiftMeta").textContent =
-        `Asisten: ${activeShift.asisten_nama} | Mobil: ${veh?.plat_nomor || "-"}`;
-      document.getElementById("lblShiftSub").textContent =
-        `Tanggal: ${activeShift.tanggal} | KM Awal: ${activeShift.km_awal} km | Pindah DJO: ${(activeShift.riwayat_pindah_jadwal || []).length}x`;
-
-      const outletOpts = cachedOutlets
-        .map((o) => `<option value="${o.id}">${o.kode_toko} — ${o.nama_toko} (${o.kode_djo || "Non-DJO"} | ${o.tier_harga})</option>`)
-        .join("");
-      ["sale_outlet_id", "noorder_outlet_id", "ret_outlet_id", "debt_outlet_id", "pindah_toko_id"].forEach((id) => {
-        document.getElementById(id).innerHTML = outletOpts;
-      });
-
-      const prodOpts = cachedProducts
-        .map((p) => `<option value="${p.id}">${p.sku_kode} — ${p.nama_produk}</option>`)
-        .join("");
-      ["sale_product_id", "ret_prod_id", "ganti_prod_id", "load_prod_id"].forEach((id) => {
-        document.getElementById(id).innerHTML = prodOpts;
-      });
-
-      document.getElementById("noorder_reason_id").innerHTML = reasons
-        .map((r) => `<option value="${r.id}">${r.label_alasan}</option>`)
-        .join("");
-
-      document.getElementById("exp_cat_id").innerHTML = expCats
-        .map((c) => `<option value="${c.id}">${c.nama_biaya}</option>`)
-        .join("");
-
-      const debtOutlet = cachedOutlets.find((o) => Number(o.id) === Number(document.getElementById("debt_outlet_id").value));
-      document.getElementById("debt_outlet_saldo").textContent =
-        `Sisa piutang aktif toko: ${fmtRp(debtOutlet?.sisa_piutang_aktif || 0)}`;
-
-      updateSalePreview();
-      updateReturPreview();
-
-      // Render Stok & Laporan
-      const rep = await SalesApp.getShiftReport(activeShift.id);
-      document.getElementById("tbodyStock").innerHTML = rep.stockSummary.map((s) => `
-        <tr>
-          <td class="py-2 pr-3 font-medium">${s.product.nama_produk}</td>
-          <td class="py-2 pr-3">${s.loadingAwal} bks</td>
-          <td class="py-2 pr-3 text-emerald-700">+${s.returMasuk} bks</td>
-          <td class="py-2 pr-3 text-red-700">-${s.terjual + s.keluarPenggantiRetur} bks</td>
-          <td class="py-2 font-bold">${s.sisaLabel} (${s.sisaBungkus} bks)</td>
-        </tr>
-      `).join("") || `<tr><td colspan="5" class="py-4 text-center text-slate-400">Belum ada data produk</td></tr>`;
-
-      const k = rep.keuangan;
-      document.getElementById("salesReportContainer").innerHTML = `
-        <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          <div class="bg-white p-4 rounded-2xl border border-slate-200">
-            <div class="text-xs text-slate-500">Kunjungan / EC</div>
-            <div class="text-lg font-bold">${rep.kpi.totalKunjungan} / ${rep.kpi.ecCount} EC</div>
-            <div class="text-xs text-amber-600">Pindah jadwal: ${rep.kpi.pindahJadwalCount}</div>
+      box.innerHTML = `
+        <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Audit DJO ${audit.shift.kode_djo} — ${audit.shift.tanggal}</h3>
+              <p class="text-xs text-slate-500">Sales: ${audit.salesName} | Asisten: ${audit.shift.asisten_nama || "-"} | Mobil: ${audit.vehicleLabel} | Jarak: ${audit.jarakKm ?? "-"} km</p>
+            </div>
+            <button onclick="exportShiftExcel(${audit.shift.id})" class="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold cursor-pointer">
+              Ekspor Excel (.xlsx)
+            </button>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-slate-200">
-            <div class="text-xs text-slate-500">Total Omzet</div>
-            <div class="text-lg font-bold text-blue-700">${fmtRp(k.totalOmzet)}</div>
-            <div class="text-xs text-slate-500">Kredit baru: ${fmtRp(k.omzetKredit)}</div>
+
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 text-xs sm:text-sm">
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-xs text-slate-500">EC & Strike Rate</div>
+              <div class="font-bold text-base">${k.ecCount} / ${k.validVisits} (${k.strikeRate.toFixed(1)}%)</div>
+              <div class="text-xs text-amber-700">Pindah jadwal: ${k.rescheduledCount} toko, ${k.shiftRescheduleLogs.length}x DJO</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-xs text-slate-500">Omzet & Cost Ratio</div>
+              <div class="font-bold text-base text-blue-700">${fmtRp(f.totalOmzet)}</div>
+              <div class="text-xs text-slate-600">Biaya: ${fmtRp(f.totalBiayaAll)} (${f.costRatio.toFixed(2)}%)</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-xs text-slate-500">Wajib Setor Tunai</div>
+              <div class="font-bold text-base text-emerald-700">${fmtRp(f.wajibSetorTunai)}</div>
+              <div class="text-xs text-slate-600">Transfer: ${fmtRp(f.totalTransfer)}</div>
+            </div>
+            <div class="p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div class="text-xs text-slate-500">Kredit Baru & Selisih Retur</div>
+              <div class="font-bold text-base">${fmtRp(f.omzetKredit)}</div>
+              <div class="text-xs text-slate-600">Ganti sales: ${fmtRp(f.returGantiSales)}</div>
+            </div>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-slate-200">
-            <div class="text-xs text-slate-500">Wajib Setor Tunai (Cash)</div>
-            <div class="text-lg font-bold text-emerald-700">${fmtRp(k.wajibSetorTunai)}</div>
-            <div class="text-xs text-slate-500">Biaya kas: ${fmtRp(k.totalBiayaCash)}</div>
+
+          <div class="overflow-x-auto">
+            <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Call Sheet Kunjungan & Status Jadwal</h4>
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-slate-500">
+                  <th class="py-1.5 pr-2">No</th>
+                  <th class="py-1.5 pr-2">Toko</th>
+                  <th class="py-1.5 pr-2">Status Kunjungan</th>
+                  <th class="py-1.5 pr-2">Status Jadwal</th>
+                  <th class="py-1.5 pr-2">Alasan / Metode</th>
+                  <th class="py-1.5">Tagihan</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${audit.callSheetRows.map((r) => `
+                  <tr>
+                    <td class="py-1.5 pr-2">${r.no}</td>
+                    <td class="py-1.5 pr-2 font-medium">${r.nama_toko} (${r.tier})</td>
+                    <td class="py-1.5 pr-2">${r.status_kunjungan}</td>
+                    <td class="py-1.5 pr-2">${r.status_jadwal}</td>
+                    <td class="py-1.5 pr-2">${r.status_kunjungan === "effective_call" ? r.metode_bayar : r.alasan_non_order}</td>
+                    <td class="py-1.5">${fmtRp(r.total_tagihan)}</td>
+                  </tr>
+                `).join("") || `<tr><td colspan="6" class="py-3 text-center text-slate-400">Belum ada kunjungan</td></tr>`}
+              </tbody>
+            </table>
           </div>
-          <div class="bg-white p-4 rounded-2xl border border-slate-200">
-            <div class="text-xs text-slate-500">Total Transfer</div>
-            <div class="text-lg font-bold text-slate-800">${fmtRp(k.totalTerverifikasiTransfer)}</div>
-            <div class="text-xs text-slate-500">Ganti selisih sales: ${fmtRp(k.returGantiSales)}</div>
+
+          <div class="overflow-x-auto">
+            <h4 class="text-xs font-bold uppercase text-slate-500 mb-2">Audit Sisa Stok Kendaraan</h4>
+            <table class="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr class="border-b border-slate-200 text-slate-500">
+                  <th class="py-1.5 pr-2">Produk</th>
+                  <th class="py-1.5 pr-2">Loading</th>
+                  <th class="py-1.5 pr-2">Retur Masuk</th>
+                  <th class="py-1.5 pr-2">Keluar</th>
+                  <th class="py-1.5">Sisa Stok Akhir</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                ${audit.stockAudit.map((s) => `
+                  <tr>
+                    <td class="py-1.5 pr-2 font-medium">${s.nama_produk}</td>
+                    <td class="py-1.5 pr-2">${s.loadingAwal} bks</td>
+                    <td class="py-1.5 pr-2">+${s.returMasuk} bks</td>
+                    <td class="py-1.5 pr-2">-${s.terjual + s.keluarGanti} bks</td>
+                    <td class="py-1.5 font-bold">${s.sisaLabel} (${s.sisaBungkus} bks)</td>
+                  </tr>
+                `).join("") || `<tr><td colspan="5" class="py-3 text-center text-slate-400">Belum ada mutasi stok</td></tr>`}
+              </tbody>
+            </table>
           </div>
         </div>
       `;
-      document.getElementById("close_km_akhir").value = activeShift.km_awal || 0;
+    };
+
+    window.exportShiftExcel = async (shiftId) => {
+      try {
+        const fname = await AdminApp.exportShiftToExcel(shiftId);
+        showNotif(`File Excel berhasil diunduh: ${fname}`);
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    };
+
+    async function renderMonitoringAndDebts() {
+      const shifts = await AdminApp.getFilteredShifts({
+        tanggal: document.getElementById("filterTanggal").value,
+        kode_djo: document.getElementById("filterDjo").value
+      });
+      const users = await MasterHelper.getUsers();
+
+      document.getElementById("tbodyShifts").innerHTML = shifts.map((s) => {
+        const sales = users.find((u) => Number(u.id) === Number(s.sales_id));
+        const pindahCount = (s.riwayat_pindah_jadwal || []).length;
+        return `
+          <tr>
+            <td class="py-2 pr-3">${s.tanggal}</td>
+            <td class="py-2 pr-3 font-bold">${s.kode_djo} ${pindahCount > 0 ? `<span class="text-xs text-amber-600">(Pindah ${pindahCount}x)</span>` : ""}</td>
+            <td class="py-2 pr-3">${sales?.nama || "-"} / Asisten: ${s.asisten_nama || "-"}</td>
+            <td class="py-2 pr-3">${s.status_shift}</td>
+            <td class="py-2 space-x-2">
+              <button onclick="inspectShift(${s.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Detail Audit</button>
+              <button onclick="exportShiftExcel(${s.id})" class="text-emerald-600 hover:underline text-xs font-semibold cursor-pointer">Excel</button>
+            </td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="5" class="py-4 text-center text-slate-400">Belum ada shift operasional</td></tr>`;
+
+      const debtInfo = await AdminApp.getActiveDebtsSummary();
+      document.getElementById("totalPiutangBadge").textContent = `Total: ${fmtRp(debtInfo.totalPiutang)}`;
+      document.getElementById("tbodyDebts").innerHTML = debtInfo.outletsWithDebt.map((o) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${o.kode_toko}</td>
+          <td class="py-2 pr-3 font-medium">${o.nama_toko}</td>
+          <td class="py-2 pr-3">${o.tier_harga}</td>
+          <td class="py-2 pr-3">${fmtRp(o.limit_kredit)}</td>
+          <td class="py-2 font-bold text-amber-700">${fmtRp(o.sisa_piutang_aktif)}</td>
+        </tr>
+      `).join("") || `<tr><td colspan="5" class="py-4 text-center text-slate-400">Tidak ada piutang toko aktif</td></tr>`;
     }
 
-    // Event bindings
-    ["sale_outlet_id", "sale_product_id", "sale_karton", "sale_bal", "sale_slop", "sale_bungkus"].forEach((id) => {
-      document.getElementById(id).addEventListener("input", updateSalePreview);
-      document.getElementById(id).addEventListener("change", updateSalePreview);
-    });
+    async function renderAll() {
+      await renderMonitoringAndDebts();
 
-    ["ret_outlet_id", "ret_prod_id", "ret_karton", "ret_bal", "ret_slop", "ret_bungkus",
-     "ganti_prod_id", "ganti_karton", "ganti_bal", "ganti_slop", "ganti_bungkus"].forEach((id) => {
-      document.getElementById(id).addEventListener("input", updateReturPreview);
-      document.getElementById(id).addEventListener("change", updateReturPreview);
-    });
+      const prods = await MasterHelper.getProducts();
+      document.getElementById("tbodyProducts").innerHTML = prods.map((p) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${p.sku_kode}</td>
+          <td class="py-2 pr-3 font-medium">${p.nama_produk}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_ritel)}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_grosir)}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_star_outlet)}</td>
+          <td class="py-2 pr-3">${p.status_aktif}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editProduct(${p.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            <button onclick="removeProduct(${p.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="7" class="py-4 text-center text-slate-400">Belum ada data produk</td></tr>`;
 
-    document.getElementById("debt_outlet_id").addEventListener("change", () => {
-      const o = cachedOutlets.find((x) => Number(x.id) === Number(document.getElementById("debt_outlet_id").value));
-      document.getElementById("debt_outlet_saldo").textContent = `Sisa piutang aktif toko: ${fmtRp(o?.sisa_piutang_aktif || 0)}`;
-    });
+      const outlets = await MasterHelper.getOutlets();
+      document.getElementById("tbodyOutlets").innerHTML = outlets.map((o) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${o.kode_toko}</td>
+          <td class="py-2 pr-3 font-medium">${o.nama_toko}</td>
+          <td class="py-2 pr-3">${o.tier_harga}</td>
+          <td class="py-2 pr-3">${o.kode_djo || "-"} (${(o.jadwal_hari || []).join(", ") || "-"})</td>
+          <td class="py-2 pr-3 text-xs">${o.koordinat_gps?.lat ?? "-"}, ${o.koordinat_gps?.lng ?? "-"}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editOutlet(${o.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            <button onclick="removeOutlet(${o.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="py-4 text-center text-slate-400">Belum ada data toko</td></tr>`;
 
-    document.getElementById("btnTogglePindahJadwal").addEventListener("click", () => {
-      document.getElementById("panelPindahJadwal").classList.toggle("hidden");
-    });
+      const vehs = await MasterHelper.getVehicles();
+      document.getElementById("tbodyVehicles").innerHTML = vehs.map((v) => {
+        const info = MasterHelper.evaluateVehicleStatus(v);
+        const badge = info.statusArmada === "PERHATIAN_KRITIS"
+          ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold">Kritis</span>`
+          : info.statusArmada === "MENDEKATI_JATUH_TEMPO"
+          ? `<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-semibold">Mendekati</span>`
+          : `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-semibold">Aman</span>`;
 
-    document.getElementById("formOpenShift").addEventListener("submit", async (e) => {
+        return `
+          <tr>
+            <td class="py-2 pr-3">
+              <div class="font-semibold">${v.plat_nomor} — ${v.nama_kendaraan || ""}</div>
+              <div class="text-xs text-slate-500">${v.kode_kendaraan} (${v.status_aktif})</div>
+            </td>
+            <td class="py-2 pr-3">${Number(v.km_terakhir || 0).toLocaleString("id-ID")} km</td>
+            <td class="py-2 pr-3">
+              ${badge}
+              <div class="text-xs text-slate-600 mt-1">${info.alerts.length ? info.alerts.join(" • ") : "Servis & surat aman"}</div>
+            </td>
+            <td class="py-2 space-x-2">
+              <button onclick="editVehicle(${v.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+              <button onclick="removeVehicle(${v.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+            </td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada data kendaraan</td></tr>`;
+
+      const users = await MasterHelper.getUsers();
+      document.getElementById("tbodyUsers").innerHTML = users.map((u) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${u.kode_user}</td>
+          <td class="py-2 pr-3 font-medium">${u.nama}</td>
+          <td class="py-2 pr-3">${u.username}</td>
+          <td class="py-2 pr-3">${u.role}</td>
+          <td class="py-2 pr-3">${u.kode_rute || "-"}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            ${u.username !== "admin" ? `<button onclick="removeUser(${u.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>` : ""}
+          </td>
+        </tr>
+      `).join("");
+
+      const reasons = await MasterHelper.getNoOrderReasons();
+      document.getElementById("listReasons").innerHTML = reasons.map((r) => `
+        <li class="py-2 flex items-center justify-between gap-2">
+          <div>
+            <span class="font-medium">${r.label_alasan}</span>
+            <span class="text-xs text-slate-400 ml-1">(${r.kode_alasan})</span>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded ${r.dihitung_kunjungan_valid ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}">
+            ${r.dihitung_kunjungan_valid ? "Valid EC" : "Non-EC"}
+          </span>
+        </li>
+      `).join("");
+
+      const cats = await MasterHelper.getExpenseCategories();
+      document.getElementById("listExpenseCats").innerHTML = cats.map((c) => `
+        <li class="py-2 flex items-center justify-between gap-2">
+          <span class="font-medium">${c.nama_biaya}</span>
+          <span class="text-xs font-mono text-slate-500">${c.kode_biaya}</span>
+        </li>
+      `).join("");
+    }
+
+    document.getElementById("btnFilterShift").addEventListener("click", renderMonitoringAndDebts);
+
+    // Master CRUD handlers (sama seperti Tahap 3)
+    window.editProduct = async (id) => {
+      const p = await db.products.get(Number(id));
+      if (!p) return;
+      document.getElementById("prod_id").value = p.id;
+      document.getElementById("sku_kode").value = p.sku_kode;
+      document.getElementById("nama_produk").value = p.nama_produk;
+      document.getElementById("kategori_lini").value = p.kategori_lini || "";
+      document.getElementById("prod_status").value = p.status_aktif || "aktif";
+      document.getElementById("harga_ritel").value = p.harga_ritel || 0;
+      document.getElementById("harga_grosir").value = p.harga_grosir || 0;
+      document.getElementById("harga_star_outlet").value = p.harga_star_outlet || 0;
+      document.getElementById("bal_per_karton").value = p.bal_per_karton || 4;
+      document.getElementById("slop_per_bal").value = p.slop_per_bal || 20;
+      document.getElementById("isi_per_slop").value = p.isi_per_slop || 10;
+    };
+    window.removeProduct = async (id) => { await MasterHelper.deleteProduct(id); showNotif("Produk dihapus."); renderAll(); };
+    document.getElementById("btnResetProduct").addEventListener("click", () => { document.getElementById("formProduct").reset(); document.getElementById("prod_id").value = ""; });
+    document.getElementById("formProduct").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
-        activeShift = await SalesApp.openShift({
-          sales_id: currentSession.user_id,
-          asisten_nama: document.getElementById("asisten_nama").value,
-          vehicle_id: document.getElementById("shift_vehicle_id").value,
-          kode_djo: document.getElementById("shift_kode_djo").value,
-          tanggal: document.getElementById("shift_tanggal").value,
-          km_awal: document.getElementById("shift_km_awal").value
+        await MasterHelper.saveProduct({
+          sku_kode: document.getElementById("sku_kode").value,
+          nama_produk: document.getElementById("nama_produk").value,
+          kategori_lini: document.getElementById("kategori_lini").value,
+          status_aktif: document.getElementById("prod_status").value,
+          harga_ritel: document.getElementById("harga_ritel").value,
+          harga_grosir: document.getElementById("harga_grosir").value,
+          harga_star_outlet: document.getElementById("harga_star_outlet").value,
+          bal_per_karton: document.getElementById("bal_per_karton").value,
+          slop_per_bal: document.getElementById("slop_per_bal").value,
+          isi_per_slop: document.getElementById("isi_per_slop").value
+        }, document.getElementById("prod_id").value || null);
+        document.getElementById("formProduct").reset();
+        document.getElementById("prod_id").value = "";
+        showNotif("Data produk tersimpan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
+    });
+
+    window.editOutlet = async (id) => {
+      const o = await db.outlets.get(Number(id));
+      if (!o) return;
+      document.getElementById("outlet_id").value = o.id;
+      document.getElementById("kode_toko").value = o.kode_toko;
+      document.getElementById("nama_toko").value = o.nama_toko;
+      document.getElementById("tier_harga").value = o.tier_harga || "ritel";
+      document.getElementById("kode_djo").value = o.kode_djo || "";
+      document.getElementById("jadwal_hari").value = (o.jadwal_hari || []).join(", ");
+      document.getElementById("lat").value = o.koordinat_gps?.lat ?? "";
+      document.getElementById("lng").value = o.koordinat_gps?.lng ?? "";
+      document.getElementById("limit_kredit").value = o.limit_kredit || 0;
+      document.getElementById("alamat").value = o.alamat || "";
+      document.getElementById("izinkan_kredit").checked = Boolean(o.izinkan_kredit);
+    };
+    window.removeOutlet = async (id) => { await MasterHelper.deleteOutlet(id); showNotif("Toko dihapus."); renderAll(); };
+    document.getElementById("btnResetOutlet").addEventListener("click", () => { document.getElementById("formOutlet").reset(); document.getElementById("outlet_id").value = ""; });
+    document.getElementById("formOutlet").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveOutlet({
+          kode_toko: document.getElementById("kode_toko").value,
+          nama_toko: document.getElementById("nama_toko").value,
+          tier_harga: document.getElementById("tier_harga").value,
+          kode_djo: document.getElementById("kode_djo").value,
+          jadwal_hari: document.getElementById("jadwal_hari").value,
+          lat: document.getElementById("lat").value,
+          lng: document.getElementById("lng").value,
+          limit_kredit: document.getElementById("limit_kredit").value,
+          alamat: document.getElementById("alamat").value,
+          izinkan_kredit: document.getElementById("izinkan_kredit").checked
+        }, document.getElementById("outlet_id").value || null);
+        document.getElementById("formOutlet").reset();
+        document.getElementById("outlet_id").value = "";
+        showNotif("Data toko tersimpan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
+    });
+
+    window.editVehicle = async (id) => {
+      const v = await db.vehicles.get(Number(id));
+      if (!v) return;
+      document.getElementById("vehicle_id").value = v.id;
+      document.getElementById("kode_kendaraan").value = v.kode_kendaraan;
+      document.getElementById("plat_nomor").value = v.plat_nomor;
+      document.getElementById("nama_kendaraan").value = v.nama_kendaraan || "";
+      document.getElementById("km_terakhir").value = v.km_terakhir || 0;
+      document.getElementById("km_servis_terakhir").value = v.km_servis_terakhir || 0;
+      document.getElementById("interval_km_servis").value = v.interval_km_servis || 5000;
+      document.getElementById("tanggal_servis_berikutnya").value = v.tanggal_servis_berikutnya || "";
+      document.getElementById("stnk_tahunan").value = v.stnk_tahunan || "";
+      document.getElementById("stnk_lima_tahunan").value = v.stnk_lima_tahunan || "";
+      document.getElementById("kir_berlaku_sampai").value = v.kir_berlaku_sampai || "";
+      document.getElementById("asuransi_berlaku_sampai").value = v.asuransi_berlaku_sampai || "";
+      document.getElementById("veh_status").value = v.status_aktif || "aktif";
+    };
+    window.removeVehicle = async (id) => { await MasterHelper.deleteVehicle(id); showNotif("Kendaraan dihapus."); renderAll(); };
+    document.getElementById("btnResetVehicle").addEventListener("click", () => { document.getElementById("formVehicle").reset(); document.getElementById("vehicle_id").value = ""; });
+    document.getElementById("formVehicle").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveVehicle({
+          kode_kendaraan: document.getElementById("kode_kendaraan").value,
+          plat_nomor: document.getElementById("plat_nomor").value,
+          nama_kendaraan: document.getElementById("nama_kendaraan").value,
+          km_terakhir: document.getElementById("km_terakhir").value,
+          km_servis_terakhir: document.getElementById("km_servis_terakhir").value,
+          interval_km_servis: document.getElementById("interval_km_servis").value,
+          tanggal_servis_berikutnya: document.getElementById("tanggal_servis_berikutnya").value,
+          stnk_tahunan: document.getElementById("stnk_tahunan").value,
+          stnk_lima_tahunan: document.getElementById("stnk_lima_tahunan").value,
+          kir_berlaku_sampai: document.getElementById("kir_berlaku_sampai").value,
+          asuransi_berlaku_sampai: document.getElementById("asuransi_berlaku_sampai").value,
+          status_aktif: document.getElementById("veh_status").value
+        }, document.getElementById("vehicle_id").value || null);
+        document.getElementById("formVehicle").reset();
+        document.getElementById("vehicle_id").value = "";
+        showNotif("Data kendaraan tersimpan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
+    });
+
+    window.editUser = async (id) => {
+      const u = await db.users.get(Number(id));
+      if (!u) return;
+      document.getElementById("usr_id").value = u.id;
+      document.getElementById("kode_user").value = u.kode_user;
+      document.getElementById("usr_nama").value = u.nama;
+      document.getElementById("usr_username").value = u.username;
+      document.getElementById("usr_pin").value = u.pin_atau_pass || "";
+      document.getElementById("usr_role").value = u.role;
+      document.getElementById("usr_rute").value = u.kode_rute || "";
+      document.getElementById("usr_status").value = u.status_aktif || "aktif";
+    };
+    window.removeUser = async (id) => { await MasterHelper.deleteUser(id); showNotif("Pengguna dihapus."); renderAll(); };
+    document.getElementById("btnResetUser").addEventListener("click", () => { document.getElementById("formUser").reset(); document.getElementById("usr_id").value = ""; });
+    document.getElementById("formUser").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveUser({
+          kode_user: document.getElementById("kode_user").value,
+          nama: document.getElementById("usr_nama").value,
+          username: document.getElementById("usr_username").value,
+          pin_atau_pass: document.getElementById("usr_pin").value,
+          role: document.getElementById("usr_role").value,
+          kode_rute: document.getElementById("usr_rute").value,
+          status_aktif: document.getElementById("usr_status").value
+        }, document.getElementById("usr_id").value || null);
+        document.getElementById("formUser").reset();
+        document.getElementById("usr_id").value = "";
+        showNotif("Data pengguna tersimpan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
+    });
+
+    document.getElementById("formReason").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveNoOrderReason({
+          kode_alasan: document.getElementById("kode_alasan").value,
+          label_alasan: document.getElementById("label_alasan").value,
+          dihitung_kunjungan_valid: document.getElementById("dihitung_kunjungan_valid").checked
         });
-        document.getElementById("openShiftSection").classList.add("hidden");
-        document.getElementById("activeWorkspace").classList.remove("hidden");
-        showNotif("Shift DJO berhasil dibuka.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
+        document.getElementById("formReason").reset();
+        showNotif("Alasan tidak beli ditambahkan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
     });
 
-    document.getElementById("formPindahDjo").addEventListener("submit", async (e) => {
+    document.getElementById("formExpenseCat").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
-        activeShift = await SalesApp.pindahJadwalShift(activeShift.id, {
-          djo_tujuan: document.getElementById("pindah_djo_tujuan").value,
-          alasan_pindah: document.getElementById("pindah_djo_alasan").value
+        await MasterHelper.saveExpenseCategory({
+          kode_biaya: document.getElementById("kode_biaya").value,
+          nama_biaya: document.getElementById("nama_biaya").value
         });
-        e.target.reset();
-        showNotif("Pindah DJO dicatat dan akan tampil di laporan.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
+        document.getElementById("formExpenseCat").reset();
+        showNotif("Kategori biaya ditambahkan.");
+        renderAll();
+      } catch (err) { showNotif(err.message, "error"); }
     });
 
-    document.getElementById("formPindahToko").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.pindahJadwalToko({
-          shift_id: activeShift.id,
-          outlet_id: document.getElementById("pindah_toko_id").value,
-          sales_id: currentSession.user_id,
-          tanggal: activeShift.tanggal,
-          djo_asal: activeShift.kode_djo,
-          djo_tujuan: document.getElementById("pindah_toko_djo").value,
-          tanggal_tujuan: document.getElementById("pindah_toko_tgl").value,
-          alasan_pindah: document.getElementById("pindah_toko_alasan").value
-        });
-        e.target.reset();
-        showNotif("Pindah jadwal toko tercatat di laporan.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formSale").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.recordSale({
-          shift_id: activeShift.id,
-          outlet_id: document.getElementById("sale_outlet_id").value,
-          sales_id: currentSession.user_id,
-          vehicle_id: activeShift.vehicle_id,
-          kode_djo: activeShift.kode_djo,
-          tanggal: activeShift.tanggal,
-          metode_bayar: document.getElementById("sale_metode").value,
-          catatan: document.getElementById("sale_catatan").value,
-          items: [{
-            product_id: document.getElementById("sale_product_id").value,
-            qtyObj: {
-              karton: document.getElementById("sale_karton").value,
-              bal: document.getElementById("sale_bal").value,
-              slop: document.getElementById("sale_slop").value,
-              bungkus: document.getElementById("sale_bungkus").value
-            }
-          }]
-        });
-        ["sale_karton", "sale_bal", "sale_slop", "sale_bungkus"].forEach((id) => (document.getElementById(id).value = 0));
-        document.getElementById("sale_catatan").value = "";
-        showNotif("Transaksi penjualan tersimpan & stok mobil terpotong.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formNoOrder").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.recordNoOrderVisit({
-          shift_id: activeShift.id,
-          outlet_id: document.getElementById("noorder_outlet_id").value,
-          sales_id: currentSession.user_id,
-          kode_djo: activeShift.kode_djo,
-          tanggal: activeShift.tanggal,
-          reason_id: document.getElementById("noorder_reason_id").value,
-          catatan: document.getElementById("noorder_catatan").value
-        });
-        document.getElementById("noorder_catatan").value = "";
-        showNotif("Kunjungan tanpa order berhasil dicatat.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formRetur").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.recordReturnExchange({
-          shift_id: activeShift.id,
-          outlet_id: document.getElementById("ret_outlet_id").value,
-          sales_id: currentSession.user_id,
-          vehicle_id: activeShift.vehicle_id,
-          kode_djo: activeShift.kode_djo,
-          tanggal: activeShift.tanggal,
-          kondisi_retur: document.getElementById("ret_kondisi").value,
-          metode_selisih: document.getElementById("ret_metode_selisih").value,
-          returItem: {
-            product_id: document.getElementById("ret_prod_id").value,
-            qtyObj: {
-              karton: document.getElementById("ret_karton").value,
-              bal: document.getElementById("ret_bal").value,
-              slop: document.getElementById("ret_slop").value,
-              bungkus: document.getElementById("ret_bungkus").value
-            }
-          },
-          gantiItem: {
-            product_id: document.getElementById("ganti_prod_id").value,
-            qtyObj: {
-              karton: document.getElementById("ganti_karton").value,
-              bal: document.getElementById("ganti_bal").value,
-              slop: document.getElementById("ganti_slop").value,
-              bungkus: document.getElementById("ganti_bungkus").value
-            }
-          }
-        });
-        ["ret_karton", "ret_bal", "ret_slop", "ret_bungkus", "ganti_karton", "ganti_bal", "ganti_slop", "ganti_bungkus"].forEach(
-          (id) => (document.getElementById(id).value = 0)
-        );
-        showNotif("Retur tukar barang & penyesuaian stok tersimpan.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formDebtPay").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.recordDebtPayment({
-          shift_id: activeShift.id,
-          outlet_id: document.getElementById("debt_outlet_id").value,
-          sales_id: currentSession.user_id,
-          tanggal: activeShift.tanggal,
-          nominal: document.getElementById("debt_nominal").value,
-          metode_terima: document.getElementById("debt_metode").value,
-          catatan: document.getElementById("debt_catatan").value
-        });
-        e.target.reset();
-        showNotif("Pembayaran kredit/piutang toko tersimpan.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formExpense").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.addExpense({
-          shift_id: activeShift.id,
-          sales_id: currentSession.user_id,
-          tanggal: activeShift.tanggal,
-          category_id: document.getElementById("exp_cat_id").value,
-          nominal: document.getElementById("exp_nominal").value,
-          metode_bayar: document.getElementById("exp_metode").value,
-          keterangan: document.getElementById("exp_ket").value
-        });
-        e.target.reset();
-        showNotif("Biaya operasional tercatat.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formLoading").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.addLoadingStock({
-          shift_id: activeShift.id,
-          vehicle_id: activeShift.vehicle_id,
-          tanggal: activeShift.tanggal,
-          product_id: document.getElementById("load_prod_id").value,
-          qtyObj: {
-            karton: document.getElementById("load_karton").value,
-            bal: document.getElementById("load_bal").value,
-            slop: document.getElementById("load_slop").value,
-            bungkus: document.getElementById("load_bungkus").value
-          }
-        });
-        ["load_karton", "load_bal", "load_slop", "load_bungkus"].forEach((id) => (document.getElementById(id).value = 0));
-        showNotif("Stok loading awal ditambahkan.");
-        await refreshWorkspace();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
-    });
-
-    document.getElementById("formCloseShift").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      try {
-        await SalesApp.closeShift(activeShift.id, document.getElementById("close_km_akhir").value);
-        showNotif("Shift DJO selesai dan ditutup.");
-        activeShift = null;
-        document.getElementById("activeWorkspace").classList.add("hidden");
-        document.getElementById("openShiftSection").classList.remove("hidden");
-        await loadSetupOptions();
-      } catch (err) {
-        showNotif(err.message, "error");
-      }
+    document.getElementById("btnReseed").addEventListener("click", async () => {
+      await SeedHelper.seedDefaults();
+      showNotif("Seed data default berhasil disinkronkan.");
+      renderAll();
     });
 
     document.getElementById("btnLogout").addEventListener("click", () => AuthHelper.logout());
 
     document.addEventListener("DOMContentLoaded", async () => {
-      currentSession = await AuthHelper.requireRole("sales");
-      if (!currentSession) return;
-      document.getElementById("salesInfo").textContent = `${currentSession.nama} (${currentSession.username})`;
-
-      activeShift = await SalesApp.getActiveShift(currentSession.user_id);
-      if (activeShift) {
-        document.getElementById("activeWorkspace").classList.remove("hidden");
-        await refreshWorkspace();
-      } else {
-        document.getElementById("openShiftSection").classList.remove("hidden");
-        await loadSetupOptions();
-      }
+      const session = await AuthHelper.requireRole("admin");
+      if (!session) return;
+      document.getElementById("adminInfo").textContent = `${session.nama} (${session.username})`;
+      await renderAll();
     });
   </script>
 </body>
