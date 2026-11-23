@@ -470,6 +470,22 @@
   </main>
 
   <script>
+window.addEventListener("error", (event) => {
+  const box = document.getElementById("notifBox");
+  if (box) {
+    box.textContent = "Error JS: " + event.message;
+    box.className = "p-3 rounded-xl text-sm font-medium block bg-red-50 text-red-700 border border-red-200";
+  }
+});
+
+window.addEventListener("unhandledrejection", (event) => {
+  const box = document.getElementById("notifBox");
+  if (box) {
+    box.textContent = "Error Async: " + (event.reason?.message || event.reason);
+    box.className = "p-3 rounded-xl text-sm font-medium block bg-red-50 text-red-700 border border-red-200";
+  }
+});
+    
     const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
     function showNotif(msg, type = "success") {
