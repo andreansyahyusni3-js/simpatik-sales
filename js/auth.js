@@ -3,6 +3,10 @@
 
 const SESSION_KEY = "simpatik_sfa_session";
 
+function normalizeRole(role) {
+  return String(role || "").trim().toLowerCase();
+}
+
 const AuthHelper = {
   /**
    * Memastikan database siap dan data default sudah terisi
@@ -11,7 +15,9 @@ const AuthHelper = {
     if (!window.db) {
       throw new Error("Database (db.js) belum dimuat.");
     }
-    await db.open();
+    if (!db.isOpen()) {
+      await db.open();
+    }
     if (window.SeedHelper && typeof SeedHelper.seedDefaults === "function") {
       await SeedHelper.seedDefaults();
     }
@@ -48,19 +54,22 @@ const AuthHelper = {
       };
     }
 
-    if (matched.status_aktif !== "aktif") {
+    const statusAktif = String(matched.status_aktif || "aktif").trim().toLowerCase();
+    if (statusAktif !== "aktif") {
       return {
         ok: false,
         message: "Akun ini sedang nonaktif. Hubungi Admin."
       };
     }
 
+    const role = normalizeRole(matched.role) || "sales";
+
     const sessionData = {
       user_id: matched.id,
       kode_user: matched.kode_user,
       nama: matched.nama,
       username: matched.username,
-      role: matched.role, // "admin" | "sales"
+      role,
       kode_rute: matched.kode_rute || "",
       kendaraan_id: matched.kendaraan_id ?? null,
       login_at: new Date().toISOString()
@@ -71,7 +80,7 @@ const AuthHelper = {
     return {
       ok: true,
       user: sessionData,
-      redirectTo: matched.role === "admin" ? "admin.html" : "sales.html"
+      redirectTo: role === "admin" ? "admin.html" : "sales.html"
     };
   },
 
@@ -82,7 +91,10 @@ const AuthHelper = {
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       if (!raw) return null;
-      return JSON.parse(raw);
+      const parsed = JSON.parse(raw);
+      if (!parsed || !parsed.role) return null;
+      parsed.role = normalizeRole(parsed.role);
+      return parsed;
     } catch (err) {
       return null;
     }
@@ -93,26 +105,37 @@ const AuthHelper = {
    */
   logout(redirectTo = "index.html") {
     localStorage.removeItem(SESSION_KEY);
-    if (redirectTo) {
-      window.location.href = redirectTo;
+    if (redirectTo && !window.location.pathname.endsWith(redirectTo)) {
+      window.location.replace(redirectTo);
     }
   },
 
   /**
    * Guard halaman: memastikan user sudah login dan memiliki role yang sesuai.
-   * Jika tidak sesuai, diarahkan ke index.html atau halaman perannya.
    */
   async requireRole(expectedRole = null) {
-    await this.init();
-    const session = this.getSession();
-
-    if (!session || !session.role) {
-      window.location.href = "index.html";
+    try {
+      await this.init();
+    } catch (err) {
+      console.error("Auth init error:", err);
       return null;
     }
 
-    if (expectedRole && session.role !== expectedRole) {
-      window.location.href = session.role === "admin" ? "admin.html" : "sales.html";
+    const session = this.getSession();
+    const targetRole = expectedRole ? normalizeRole(expectedRole) : null;
+
+    if (!session || !session.role) {
+      if (!window.location.pathname.endsWith("index.html")) {
+        window.location.replace("index.html");
+      }
+      return null;
+    }
+
+    if (targetRole && session.role !== targetRole) {
+      const dest = session.role === "admin" ? "admin.html" : "sales.html";
+      if (!window.location.pathname.endsWith(dest)) {
+        window.location.replace(dest);
+      }
       return null;
     }
 
@@ -120,17 +143,22 @@ const AuthHelper = {
   },
 
   /**
-   * Jika sudah login di index.html, langsung arahkan ke dashboard sesuai role
+   * Jika sudah login di index.html, arahkan sekali ke dashboard sesuai role
    */
   async redirectIfAuthenticated() {
-    await this.init();
-    const session = this.getSession();
-    if (session && session.role === "admin") {
-      window.location.href = "admin.html";
-      return true;
+    try {
+      await this.init();
+    } catch (err) {
+      console.error("Auth init error:", err);
+      return false;
     }
-    if (session && session.role === "sales") {
-      window.location.href = "sales.html";
+
+    const session = this.getSession();
+    if (!session || !session.role) return false;
+
+    const dest = session.role === "admin" ? "admin.html" : "sales.html";
+    if (!window.location.pathname.endsWith(dest)) {
+      window.location.replace(dest);
       return true;
     }
     return false;
