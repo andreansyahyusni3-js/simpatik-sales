@@ -4,7 +4,7 @@
 
 const db = new Dexie("SimpatikSFA_DB");
 
-// Versi 1: Master Data + Operasional Lapangan + Retur + Piutang
+// Versi 1: Master Data + Operasional Lapangan + Retur + Piutang + Armada
 db.version(1).stores({
   // Master Data
   users: "++id, kode_user, nama, username, role, kode_rute, kendaraan_id, status_aktif",
@@ -15,8 +15,8 @@ db.version(1).stores({
   expense_categories: "++id, kode_biaya, status_aktif",
 
   // Operasional Harian & Rute (DJO)
-  djo_shifts: "++id, kode_djo, tanggal, sales_id, vehicle_id, status_shift, synced",
-  visits: "++id, shift_id, tanggal, kode_djo, outlet_id, sales_id, status_kunjungan, reason_id, synced",
+  djo_shifts: "++id, kode_djo, tanggal, sales_id, asisten_nama, vehicle_id, status_shift, synced",
+  visits: "++id, shift_id, tanggal, kode_djo, outlet_id, sales_id, status_kunjungan, reason_id, is_rescheduled, synced",
   transactions: "++id, no_nota, shift_id, visit_id, tanggal, outlet_id, sales_id, metode_bayar, status_bayar, synced",
   returns: "++id, no_retur, shift_id, visit_id, tanggal, outlet_id, sales_id, tipe_selisih, synced",
   debt_payments: "++id, no_bayar, transaction_id, outlet_id, sales_id, tanggal, metode_terima, synced",
@@ -33,7 +33,7 @@ db.version(1).stores({
 const UnitConverter = {
   /**
    * Mengubah input satuan besar & kecil menjadi total satuan terkecil (bungkus).
-   * Bisa menerima faktor custom pada produk jika diperlukan, default 4 / 20 / 10.
+   * Default: 1 Karton = 4 Bal, 1 Bal = 20 Slop, 1 Slop = 10 Bungkus.
    */
   toBungkus({ karton = 0, bal = 0, slop = 0, bungkus = 0 }, product = {}) {
     const isiPerSlop = Number(product.isi_per_slop ?? 10);
@@ -144,6 +144,143 @@ const PricingHelper = {
   }
 };
 
+// =====================================================================
+// HELPER SEED DATA AWAL (MASTER DATA DEFAULT)
+// =====================================================================
+const SeedHelper = {
+  defaultUsers: [
+    {
+      kode_user: "USR-ADMIN-01",
+      nama: "Admin Operasional",
+      username: "admin",
+      pin_atau_pass: "1234",
+      role: "admin",
+      kode_rute: "ALL",
+      kendaraan_id: null,
+      status_aktif: "aktif"
+    },
+    {
+      kode_user: "USR-SALES-01",
+      nama: "Sales Lapangan 01",
+      username: "sales1",
+      pin_atau_pass: "1234",
+      role: "sales",
+      kode_rute: "RUTE-01",
+      kendaraan_id: 1,
+      status_aktif: "aktif"
+    }
+  ],
+
+  defaultVehicles: [
+    {
+      kode_kendaraan: "VEH-01",
+      plat_nomor: "DA 0000 XX",
+      nama_kendaraan: "Unit Operasional 01",
+      sales_id: 2,
+      km_terakhir: 0,
+      km_servis_terakhir: 0,
+      interval_km_servis: 5000,
+      tanggal_servis_terakhir: "",
+      tanggal_servis_berikutnya: "",
+      catatan_servis: "",
+      stnk_tahunan: "",
+      stnk_lima_tahunan: "",
+      kir_berlaku_sampai: "",
+      asuransi_berlaku_sampai: "",
+      catatan_dokumen: "",
+      status_aktif: "aktif"
+    }
+  ],
+
+  defaultNoOrderReasons: [
+    {
+      kode_alasan: "BELUM_MAU_ORDER",
+      label_alasan: "Toko belum mau order",
+      dihitung_kunjungan_valid: true,
+      status_aktif: "aktif"
+    },
+    {
+      kode_alasan: "STOK_ADA_BELANJA_GROSIR_SO",
+      label_alasan: "Stok masih ada / belanja ke Grosir atau Star Outlet",
+      dihitung_kunjungan_valid: true,
+      status_aktif: "aktif"
+    },
+    {
+      kode_alasan: "STOK_MASIH_CUKUP",
+      label_alasan: "Stok di toko masih cukup",
+      dihitung_kunjungan_valid: true,
+      status_aktif: "aktif"
+    },
+    {
+      kode_alasan: "DANA_KURANG_PIUTANG",
+      label_alasan: "Dana kurang / masih ada piutang belum tertagih",
+      dihitung_kunjungan_valid: true,
+      status_aktif: "aktif"
+    },
+    {
+      kode_alasan: "PEMILIK_TIDAK_ADA",
+      label_alasan: "Pemilik / penanggung jawab tidak ada di tempat",
+      dihitung_kunjungan_valid: true,
+      status_aktif: "aktif"
+    },
+    {
+      kode_alasan: "TOKO_TUTUP",
+      label_alasan: "Toko tutup",
+      dihitung_kunjungan_valid: false,
+      status_aktif: "aktif"
+    }
+  ],
+
+  defaultExpenseCategories: [
+    { kode_biaya: "BBM", nama_biaya: "BBM Kendaraan", status_aktif: "aktif" },
+    { kode_biaya: "PARKIR", nama_biaya: "Parkir", status_aktif: "aktif" },
+    { kode_biaya: "MAKAN", nama_biaya: "Makan / Uang Harian", status_aktif: "aktif" },
+    { kode_biaya: "TOL_RETRIBUSI", nama_biaya: "Tol / Retribusi / Bongkar Muat", status_aktif: "aktif" },
+    { kode_biaya: "LAINNYA", nama_biaya: "Biaya Operasional Lainnya", status_aktif: "aktif" }
+  ],
+
+  /**
+   * Mengisi data awal secara aman (idempoten): hanya menambah record
+   * yang belum ada berdasarkan kode uniknya.
+   */
+  async seedDefaults() {
+    await db.transaction(
+      "rw",
+      db.users,
+      db.vehicles,
+      db.no_order_reasons,
+      db.expense_categories,
+      async () => {
+        for (const u of this.defaultUsers) {
+          const exists = await db.users.where("kode_user").equals(u.kode_user).first();
+          if (!exists) await db.users.add(u);
+        }
+
+        for (const v of this.defaultVehicles) {
+          const exists = await db.vehicles.where("kode_kendaraan").equals(v.kode_kendaraan).first();
+          if (!exists) await db.vehicles.add(v);
+        }
+
+        for (const r of this.defaultNoOrderReasons) {
+          const exists = await db.no_order_reasons.where("kode_alasan").equals(r.kode_alasan).first();
+          if (!exists) await db.no_order_reasons.add(r);
+        }
+
+        for (const c of this.defaultExpenseCategories) {
+          const exists = await db.expense_categories.where("kode_biaya").equals(c.kode_biaya).first();
+          if (!exists) await db.expense_categories.add(c);
+        }
+      }
+    );
+  }
+};
+
+// Otomatis jalankan seed saat database pertama kali dibuat
+db.on("populate", async () => {
+  await SeedHelper.seedDefaults();
+});
+
 window.db = db;
 window.UnitConverter = UnitConverter;
 window.PricingHelper = PricingHelper;
+window.SeedHelper = SeedHelper;
