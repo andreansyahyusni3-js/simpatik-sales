@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin - SIMPATIK SFA</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/dexie@3/dist/dexie.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/master.js"></script>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800">
+  <!-- Topbar -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-20">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div>
+        <h1 class="text-lg font-bold text-slate-900">SIMPATIK SFA — Panel Admin</h1>
+        <p id="adminInfo" class="text-xs text-slate-500">Memuat sesi...</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          id="btnReseed"
+          type="button"
+          class="px-3 py-1.5 text-xs font-medium rounded-lg border border-slate-300 bg-white hover:bg-slate-50 cursor-pointer"
+        >
+          Sinkronkan Seed Default
+        </button>
+        <button
+          id="btnLogout"
+          type="button"
+          class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-red-600 hover:bg-red-700 text-white cursor-pointer"
+        >
+          Keluar
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+    <div id="notifBox" class="hidden p-3 rounded-xl text-sm font-medium"></div>
+
+    <!-- Navigasi Tab Master Data -->
+    <div class="flex flex-wrap gap-2 bg-white p-2 rounded-2xl border border-slate-200 shadow-sm">
+      <button data-tab="products" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white cursor-pointer">
+        Produk & Harga
+      </button>
+      <button data-tab="outlets" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Toko / Outlet
+      </button>
+      <button data-tab="vehicles" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Kendaraan, Servis & Surat
+      </button>
+      <button data-tab="users" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Pengguna / Sales
+      </button>
+      <button data-tab="refs" class="tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer">
+        Alasan & Kategori Biaya
+      </button>
+    </div>
+
+    <!-- TAB 1: PRODUK -->
+    <section id="tab-products" class="tab-panel space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Produk (Harga per Bungkus)</h2>
+        <form id="formProduct" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="prod_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode SKU *</label>
+            <input id="sku_kode" required placeholder="SKU-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Produk *</label>
+            <input id="nama_produk" required placeholder="Nama produk" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kategori / Lini</label>
+            <input id="kategori_lini" placeholder="SKM / LTT / dll" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+            <select id="prod_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Ritel / Bungkus (Rp)</label>
+            <input id="harga_ritel" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Grosir / Bungkus (Rp)</label>
+            <input id="harga_grosir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Harga Star Outlet / Bungkus (Rp)</label>
+            <input id="harga_star_outlet" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Konversi (Bal/Ktn | Slop/Bal | Bks/Slop)</label>
+            <div class="grid grid-cols-3 gap-1.5">
+              <input id="bal_per_karton" type="number" min="1" value="4" title="Bal per Karton" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
+              <input id="slop_per_bal" type="number" min="1" value="20" title="Slop per Bal" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
+              <input id="isi_per_slop" type="number" min="1" value="10" title="Bungkus per Slop" class="px-2 py-2 rounded-xl border border-slate-300 text-sm text-center" />
+            </div>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Produk
+            </button>
+            <button type="button" id="btnResetProduct" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Produk</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">SKU</th>
+              <th class="py-2 pr-3">Nama Produk</th>
+              <th class="py-2 pr-3">Ritel/Bks</th>
+              <th class="py-2 pr-3">Grosir/Bks</th>
+              <th class="py-2 pr-3">SO/Bks</th>
+              <th class="py-2 pr-3">Status</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyProducts" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 2: TOKO / OUTLET -->
+    <section id="tab-outlets" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Toko / Outlet</h2>
+        <form id="formOutlet" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="outlet_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Toko *</label>
+            <input id="kode_toko" required placeholder="TKO-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Toko *</label>
+            <input id="nama_toko" required placeholder="Nama toko" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Tier Harga</label>
+            <select id="tier_harga" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="ritel">ritel</option>
+              <option value="grosir">grosir</option>
+              <option value="star_outlet">star_outlet</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode DJO Utama</label>
+            <input id="kode_djo" placeholder="DJO-01" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Jadwal Hari (pisah koma)</label>
+            <input id="jadwal_hari" placeholder="Senin, Kamis" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Latitude GPS</label>
+            <input id="lat" type="number" step="any" placeholder="-3.80..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Longitude GPS</label>
+            <input id="lng" type="number" step="any" placeholder="114.77..." class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Limit Kredit (Rp)</label>
+            <input id="limit_kredit" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-3">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Alamat</label>
+            <input id="alamat" placeholder="Alamat lengkap toko" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div class="flex items-end gap-2">
+            <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700 pb-2">
+              <input id="izinkan_kredit" type="checkbox" class="rounded border-slate-300" />
+              Izinkan Kredit
+            </label>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Toko
+            </button>
+            <button type="button" id="btnResetOutlet" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Toko / Outlet</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Kode</th>
+              <th class="py-2 pr-3">Nama Toko</th>
+              <th class="py-2 pr-3">Tier</th>
+              <th class="py-2 pr-3">DJO / Hari</th>
+              <th class="py-2 pr-3">GPS</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyOutlets" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 3: KENDARAAN, SERVIS & SURAT-MENYURAT -->
+    <section id="tab-vehicles" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Kendaraan, Jadwal Servis & Surat-Menyurat</h2>
+        <form id="formVehicle" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="vehicle_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Kendaraan *</label>
+            <input id="kode_kendaraan" required placeholder="VEH-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Plat Nomor *</label>
+            <input id="plat_nomor" required placeholder="DA 1234 XY" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Kendaraan</label>
+            <input id="nama_kendaraan" placeholder="Pickup / Box / Motor" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KM Terakhir</label>
+            <input id="km_terakhir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KM Servis Terakhir</label>
+            <input id="km_servis_terakhir" type="number" min="0" value="0" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Interval KM Servis</label>
+            <input id="interval_km_servis" type="number" min="100" value="5000" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Tanggal Servis Berikutnya</label>
+            <input id="tanggal_servis_berikutnya" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">STNK Tahunan</label>
+            <input id="stnk_tahunan" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">STNK 5 Tahunan</label>
+            <input id="stnk_lima_tahunan" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">KIR Berlaku Sampai</label>
+            <input id="kir_berlaku_sampai" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Asuransi Berlaku Sampai</label>
+            <input id="asuransi_berlaku_sampai" type="date" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status Kendaraan</label>
+            <select id="veh_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="perbaikan">perbaikan</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+
+          <div class="sm:col-span-2 lg:col-span-4 flex gap-2 pt-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan Kendaraan
+            </button>
+            <button type="button" id="btnResetVehicle" class="px-4 py-2 rounded-xl border border-slate-300 text-sm font-medium hover:bg-slate-50 cursor-pointer">
+              Reset Form
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Monitoring Armada (Servis & Surat-Menyurat)</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Armada</th>
+              <th class="py-2 pr-3">KM</th>
+              <th class="py-2 pr-3">Status Servis & Surat</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyVehicles" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 4: USERS -->
+    <section id="tab-users" class="tab-panel hidden space-y-4">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm">
+        <h2 class="text-base font-bold mb-4">Form Master Pengguna (Admin / Sales)</h2>
+        <form id="formUser" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <input type="hidden" id="usr_id" />
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode User *</label>
+            <input id="kode_user" required placeholder="USR-SALES-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nama Lengkap *</label>
+            <input id="usr_nama" required placeholder="Nama lengkap" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Username *</label>
+            <input id="usr_username" required placeholder="sales2" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">PIN / Password</label>
+            <input id="usr_pin" placeholder="1234" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Role</label>
+            <select id="usr_role" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="sales">sales</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Rute</label>
+            <input id="usr_rute" placeholder="RUTE-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Status</label>
+            <select id="usr_status" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm">
+              <option value="aktif">aktif</option>
+              <option value="nonaktif">nonaktif</option>
+            </select>
+          </div>
+          <div class="flex items-end gap-2">
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Simpan User
+            </button>
+            <button type="button" id="btnResetUser" class="px-3 py-2 rounded-xl border border-slate-300 text-sm hover:bg-slate-50 cursor-pointer">
+              Reset
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm overflow-x-auto">
+        <h3 class="text-sm font-bold mb-3">Daftar Pengguna</h3>
+        <table class="w-full text-left text-xs sm:text-sm border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-slate-500">
+              <th class="py-2 pr-3">Kode</th>
+              <th class="py-2 pr-3">Nama</th>
+              <th class="py-2 pr-3">Username</th>
+              <th class="py-2 pr-3">Role</th>
+              <th class="py-2 pr-3">Rute</th>
+              <th class="py-2">Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tbodyUsers" class="divide-y divide-slate-100"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- TAB 5: ALASAN TIDAK BELI & KATEGORI BIAYA -->
+    <section id="tab-refs" class="tab-panel hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <h2 class="text-base font-bold">Alasan Tidak Beli (EC)</h2>
+        <form id="formReason" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="kode_alasan" required placeholder="KODE_ALASAN" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <input id="label_alasan" required placeholder="Label alasan di lapangan" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <label class="inline-flex items-center gap-2 text-xs font-medium text-slate-700">
+            <input id="dihitung_kunjungan_valid" type="checkbox" checked class="rounded border-slate-300" />
+            Dihitung sebagai kunjungan valid (EC)
+          </label>
+          <div>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Tambah Alasan
+            </button>
+          </div>
+        </form>
+        <ul id="listReasons" class="divide-y divide-slate-100 text-xs sm:text-sm"></ul>
+      </div>
+
+      <div class="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm space-y-4">
+        <h2 class="text-base font-bold">Kategori Biaya Operasional</h2>
+        <form id="formExpenseCat" class="space-y-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <input id="kode_biaya" required placeholder="KODE_BIAYA" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <input id="nama_biaya" required placeholder="Nama kategori biaya" class="px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+          </div>
+          <div>
+            <button type="submit" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold cursor-pointer">
+              Tambah Kategori Biaya
+            </button>
+          </div>
+        </form>
+        <ul id="listExpenseCats" class="divide-y divide-slate-100 text-xs sm:text-sm"></ul>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
+
+    function showNotif(msg, type = "success") {
+      const box = document.getElementById("notifBox");
+      box.textContent = msg;
+      box.className = "p-3 rounded-xl text-sm font-medium block ";
+      box.className += type === "error"
+        ? "bg-red-50 text-red-700 border border-red-200"
+        : "bg-emerald-50 text-emerald-700 border border-emerald-200";
+    }
+
+    // Tab switching
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => {
+          b.className = "tab-btn px-4 py-2 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer";
+        });
+        btn.className = "tab-btn px-4 py-2 rounded-xl text-sm font-semibold bg-blue-600 text-white cursor-pointer";
+
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.add("hidden"));
+        document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
+      });
+    });
+
+    async function renderAll() {
+      // Products
+      const prods = await MasterHelper.getProducts();
+      document.getElementById("tbodyProducts").innerHTML = prods.map((p) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${p.sku_kode}</td>
+          <td class="py-2 pr-3 font-medium">${p.nama_produk}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_ritel)}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_grosir)}</td>
+          <td class="py-2 pr-3">${fmtRp(p.harga_star_outlet)}</td>
+          <td class="py-2 pr-3">${p.status_aktif}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editProduct(${p.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            <button onclick="removeProduct(${p.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="7" class="py-4 text-center text-slate-400">Belum ada data produk</td></tr>`;
+
+      // Outlets
+      const outlets = await MasterHelper.getOutlets();
+      document.getElementById("tbodyOutlets").innerHTML = outlets.map((o) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${o.kode_toko}</td>
+          <td class="py-2 pr-3 font-medium">${o.nama_toko}</td>
+          <td class="py-2 pr-3">${o.tier_harga}</td>
+          <td class="py-2 pr-3">${o.kode_djo || "-"} (${(o.jadwal_hari || []).join(", ") || "-"})</td>
+          <td class="py-2 pr-3 text-xs">${o.koordinat_gps?.lat ?? "-"}, ${o.koordinat_gps?.lng ?? "-"}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editOutlet(${o.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            <button onclick="removeOutlet(${o.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+          </td>
+        </tr>
+      `).join("") || `<tr><td colspan="6" class="py-4 text-center text-slate-400">Belum ada data toko</td></tr>`;
+
+      // Vehicles
+      const vehs = await MasterHelper.getVehicles();
+      document.getElementById("tbodyVehicles").innerHTML = vehs.map((v) => {
+        const info = MasterHelper.evaluateVehicleStatus(v);
+        const badge = info.statusArmada === "PERHATIAN_KRITIS"
+          ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 text-xs font-semibold">Kritis</span>`
+          : info.statusArmada === "MENDEKATI_JATUH_TEMPO"
+          ? `<span class="px-2 py-0.5 rounded bg-amber-100 text-amber-700 text-xs font-semibold">Mendekati</span>`
+          : `<span class="px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xs font-semibold">Aman</span>`;
+
+        return `
+          <tr>
+            <td class="py-2 pr-3">
+              <div class="font-semibold">${v.plat_nomor} — ${v.nama_kendaraan || ""}</div>
+              <div class="text-xs text-slate-500">${v.kode_kendaraan} (${v.status_aktif})</div>
+            </td>
+            <td class="py-2 pr-3">${Number(v.km_terakhir || 0).toLocaleString("id-ID")} km</td>
+            <td class="py-2 pr-3">
+              ${badge}
+              <div class="text-xs text-slate-600 mt-1">${info.alerts.length ? info.alerts.join(" • ") : "Servis & surat aman"}</div>
+            </td>
+            <td class="py-2 space-x-2">
+              <button onclick="editVehicle(${v.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+              <button onclick="removeVehicle(${v.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>
+            </td>
+          </tr>
+        `;
+      }).join("") || `<tr><td colspan="4" class="py-4 text-center text-slate-400">Belum ada data kendaraan</td></tr>`;
+
+      // Users
+      const users = await MasterHelper.getUsers();
+      document.getElementById("tbodyUsers").innerHTML = users.map((u) => `
+        <tr>
+          <td class="py-2 pr-3 font-mono text-xs">${u.kode_user}</td>
+          <td class="py-2 pr-3 font-medium">${u.nama}</td>
+          <td class="py-2 pr-3">${u.username}</td>
+          <td class="py-2 pr-3">${u.role}</td>
+          <td class="py-2 pr-3">${u.kode_rute || "-"}</td>
+          <td class="py-2 space-x-2">
+            <button onclick="editUser(${u.id})" class="text-blue-600 hover:underline text-xs font-semibold cursor-pointer">Edit</button>
+            ${u.username !== "admin" ? `<button onclick="removeUser(${u.id})" class="text-red-600 hover:underline text-xs font-semibold cursor-pointer">Hapus</button>` : ""}
+          </td>
+        </tr>
+      `).join("");
+
+      // Reasons & Expense Cats
+      const reasons = await MasterHelper.getNoOrderReasons();
+      document.getElementById("listReasons").innerHTML = reasons.map((r) => `
+        <li class="py-2 flex items-center justify-between gap-2">
+          <div>
+            <span class="font-medium">${r.label_alasan}</span>
+            <span class="text-xs text-slate-400 ml-1">(${r.kode_alasan})</span>
+          </div>
+          <span class="text-xs px-2 py-0.5 rounded ${r.dihitung_kunjungan_valid ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}">
+            ${r.dihitung_kunjungan_valid ? "Valid EC" : "Non-EC"}
+          </span>
+        </li>
+      `).join("");
+
+      const cats = await MasterHelper.getExpenseCategories();
+      document.getElementById("listExpenseCats").innerHTML = cats.map((c) => `
+        <li class="py-2 flex items-center justify-between gap-2">
+          <span class="font-medium">${c.nama_biaya}</span>
+          <span class="text-xs font-mono text-slate-500">${c.kode_biaya}</span>
+        </li>
+      `).join("");
+    }
+
+    // Product handlers
+    window.editProduct = async (id) => {
+      const p = await db.products.get(Number(id));
+      if (!p) return;
+      document.getElementById("prod_id").value = p.id;
+      document.getElementById("sku_kode").value = p.sku_kode;
+      document.getElementById("nama_produk").value = p.nama_produk;
+      document.getElementById("kategori_lini").value = p.kategori_lini || "";
+      document.getElementById("prod_status").value = p.status_aktif || "aktif";
+      document.getElementById("harga_ritel").value = p.harga_ritel || 0;
+      document.getElementById("harga_grosir").value = p.harga_grosir || 0;
+      document.getElementById("harga_star_outlet").value = p.harga_star_outlet || 0;
+      document.getElementById("bal_per_karton").value = p.bal_per_karton || 4;
+      document.getElementById("slop_per_bal").value = p.slop_per_bal || 20;
+      document.getElementById("isi_per_slop").value = p.isi_per_slop || 10;
+    };
+    window.removeProduct = async (id) => {
+      await MasterHelper.deleteProduct(id);
+      showNotif("Produk dihapus.");
+      renderAll();
+    };
+    document.getElementById("btnResetProduct").addEventListener("click", () => {
+      document.getElementById("formProduct").reset();
+      document.getElementById("prod_id").value = "";
+    });
+    document.getElementById("formProduct").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const id = document.getElementById("prod_id").value || null;
+        await MasterHelper.saveProduct({
+          sku_kode: document.getElementById("sku_kode").value,
+          nama_produk: document.getElementById("nama_produk").value,
+          kategori_lini: document.getElementById("kategori_lini").value,
+          status_aktif: document.getElementById("prod_status").value,
+          harga_ritel: document.getElementById("harga_ritel").value,
+          harga_grosir: document.getElementById("harga_grosir").value,
+          harga_star_outlet: document.getElementById("harga_star_outlet").value,
+          bal_per_karton: document.getElementById("bal_per_karton").value,
+          slop_per_bal: document.getElementById("slop_per_bal").value,
+          isi_per_slop: document.getElementById("isi_per_slop").value
+        }, id);
+        document.getElementById("formProduct").reset();
+        document.getElementById("prod_id").value = "";
+        showNotif("Data produk tersimpan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    // Outlet handlers
+    window.editOutlet = async (id) => {
+      const o = await db.outlets.get(Number(id));
+      if (!o) return;
+      document.getElementById("outlet_id").value = o.id;
+      document.getElementById("kode_toko").value = o.kode_toko;
+      document.getElementById("nama_toko").value = o.nama_toko;
+      document.getElementById("tier_harga").value = o.tier_harga || "ritel";
+      document.getElementById("kode_djo").value = o.kode_djo || "";
+      document.getElementById("jadwal_hari").value = (o.jadwal_hari || []).join(", ");
+      document.getElementById("lat").value = o.koordinat_gps?.lat ?? "";
+      document.getElementById("lng").value = o.koordinat_gps?.lng ?? "";
+      document.getElementById("limit_kredit").value = o.limit_kredit || 0;
+      document.getElementById("alamat").value = o.alamat || "";
+      document.getElementById("izinkan_kredit").checked = Boolean(o.izinkan_kredit);
+    };
+    window.removeOutlet = async (id) => {
+      await MasterHelper.deleteOutlet(id);
+      showNotif("Toko dihapus.");
+      renderAll();
+    };
+    document.getElementById("btnResetOutlet").addEventListener("click", () => {
+      document.getElementById("formOutlet").reset();
+      document.getElementById("outlet_id").value = "";
+    });
+    document.getElementById("formOutlet").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const id = document.getElementById("outlet_id").value || null;
+        await MasterHelper.saveOutlet({
+          kode_toko: document.getElementById("kode_toko").value,
+          nama_toko: document.getElementById("nama_toko").value,
+          tier_harga: document.getElementById("tier_harga").value,
+          kode_djo: document.getElementById("kode_djo").value,
+          jadwal_hari: document.getElementById("jadwal_hari").value,
+          lat: document.getElementById("lat").value,
+          lng: document.getElementById("lng").value,
+          limit_kredit: document.getElementById("limit_kredit").value,
+          alamat: document.getElementById("alamat").value,
+          izinkan_kredit: document.getElementById("izinkan_kredit").checked
+        }, id);
+        document.getElementById("formOutlet").reset();
+        document.getElementById("outlet_id").value = "";
+        showNotif("Data toko tersimpan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    // Vehicle handlers
+    window.editVehicle = async (id) => {
+      const v = await db.vehicles.get(Number(id));
+      if (!v) return;
+      document.getElementById("vehicle_id").value = v.id;
+      document.getElementById("kode_kendaraan").value = v.kode_kendaraan;
+      document.getElementById("plat_nomor").value = v.plat_nomor;
+      document.getElementById("nama_kendaraan").value = v.nama_kendaraan || "";
+      document.getElementById("km_terakhir").value = v.km_terakhir || 0;
+      document.getElementById("km_servis_terakhir").value = v.km_servis_terakhir || 0;
+      document.getElementById("interval_km_servis").value = v.interval_km_servis || 5000;
+      document.getElementById("tanggal_servis_berikutnya").value = v.tanggal_servis_berikutnya || "";
+      document.getElementById("stnk_tahunan").value = v.stnk_tahunan || "";
+      document.getElementById("stnk_lima_tahunan").value = v.stnk_lima_tahunan || "";
+      document.getElementById("kir_berlaku_sampai").value = v.kir_berlaku_sampai || "";
+      document.getElementById("asuransi_berlaku_sampai").value = v.asuransi_berlaku_sampai || "";
+      document.getElementById("veh_status").value = v.status_aktif || "aktif";
+    };
+    window.removeVehicle = async (id) => {
+      await MasterHelper.deleteVehicle(id);
+      showNotif("Kendaraan dihapus.");
+      renderAll();
+    };
+    document.getElementById("btnResetVehicle").addEventListener("click", () => {
+      document.getElementById("formVehicle").reset();
+      document.getElementById("vehicle_id").value = "";
+    });
+    document.getElementById("formVehicle").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const id = document.getElementById("vehicle_id").value || null;
+        await MasterHelper.saveVehicle({
+          kode_kendaraan: document.getElementById("kode_kendaraan").value,
+          plat_nomor: document.getElementById("plat_nomor").value,
+          nama_kendaraan: document.getElementById("nama_kendaraan").value,
+          km_terakhir: document.getElementById("km_terakhir").value,
+          km_servis_terakhir: document.getElementById("km_servis_terakhir").value,
+          interval_km_servis: document.getElementById("interval_km_servis").value,
+          tanggal_servis_berikutnya: document.getElementById("tanggal_servis_berikutnya").value,
+          stnk_tahunan: document.getElementById("stnk_tahunan").value,
+          stnk_lima_tahunan: document.getElementById("stnk_lima_tahunan").value,
+          kir_berlaku_sampai: document.getElementById("kir_berlaku_sampai").value,
+          asuransi_berlaku_sampai: document.getElementById("asuransi_berlaku_sampai").value,
+          status_aktif: document.getElementById("veh_status").value
+        }, id);
+        document.getElementById("formVehicle").reset();
+        document.getElementById("vehicle_id").value = "";
+        showNotif("Data kendaraan tersimpan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    // User handlers
+    window.editUser = async (id) => {
+      const u = await db.users.get(Number(id));
+      if (!u) return;
+      document.getElementById("usr_id").value = u.id;
+      document.getElementById("kode_user").value = u.kode_user;
+      document.getElementById("usr_nama").value = u.nama;
+      document.getElementById("usr_username").value = u.username;
+      document.getElementById("usr_pin").value = u.pin_atau_pass || "";
+      document.getElementById("usr_role").value = u.role;
+      document.getElementById("usr_rute").value = u.kode_rute || "";
+      document.getElementById("usr_status").value = u.status_aktif || "aktif";
+    };
+    window.removeUser = async (id) => {
+      await MasterHelper.deleteUser(id);
+      showNotif("Pengguna dihapus.");
+      renderAll();
+    };
+    document.getElementById("btnResetUser").addEventListener("click", () => {
+      document.getElementById("formUser").reset();
+      document.getElementById("usr_id").value = "";
+    });
+    document.getElementById("formUser").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        const id = document.getElementById("usr_id").value || null;
+        await MasterHelper.saveUser({
+          kode_user: document.getElementById("kode_user").value,
+          nama: document.getElementById("usr_nama").value,
+          username: document.getElementById("usr_username").value,
+          pin_atau_pass: document.getElementById("usr_pin").value,
+          role: document.getElementById("usr_role").value,
+          kode_rute: document.getElementById("usr_rute").value,
+          status_aktif: document.getElementById("usr_status").value
+        }, id);
+        document.getElementById("formUser").reset();
+        document.getElementById("usr_id").value = "";
+        showNotif("Data pengguna tersimpan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    // Reason & Expense Category handlers
+    document.getElementById("formReason").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveNoOrderReason({
+          kode_alasan: document.getElementById("kode_alasan").value,
+          label_alasan: document.getElementById("label_alasan").value,
+          dihitung_kunjungan_valid: document.getElementById("dihitung_kunjungan_valid").checked
+        });
+        document.getElementById("formReason").reset();
+        showNotif("Alasan tidak beli ditambahkan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    document.getElementById("formExpenseCat").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      try {
+        await MasterHelper.saveExpenseCategory({
+          kode_biaya: document.getElementById("kode_biaya").value,
+          nama_biaya: document.getElementById("nama_biaya").value
+        });
+        document.getElementById("formExpenseCat").reset();
+        showNotif("Kategori biaya ditambahkan.");
+        renderAll();
+      } catch (err) {
+        showNotif(err.message, "error");
+      }
+    });
+
+    document.getElementById("btnReseed").addEventListener("click", async () => {
+      await SeedHelper.seedDefaults();
+      showNotif("Seed data default berhasil disinkronkan.");
+      renderAll();
+    });
+
+    document.getElementById("btnLogout").addEventListener("click", () => AuthHelper.logout());
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      const session = await AuthHelper.requireRole("admin");
+      if (!session) return;
+      document.getElementById("adminInfo").textContent = `${session.nama} (${session.username})`;
+      await renderAll();
+    });
+  </script>
+</body>
+</html>
