@@ -24,24 +24,32 @@ const AdminApp = {
    * Menyusun analisis lengkap untuk satu Shift DJO
    */
   async getShiftAudit(shiftId) {
-    const shift = await db.djo_shifts.get(Number(shiftId));
+    const idNum = Number(shiftId);
+    const shift = await db.djo_shifts.get(idNum);
     if (!shift) return null;
 
-    const sales = await db.users.get(Number(shift.sales_id));
-    const vehicle = await db.vehicles.get(Number(shift.vehicle_id));
-    const visits = await db.visits.where("shift_id").equals(Number(shiftId)).toArray();
-    const txs = await db.transactions.where("shift_id").equals(Number(shiftId)).toArray();
-    const returns = await db.returns.where("shift_id").equals(Number(shiftId)).toArray();
-    const debtPayments = await db.debt_payments.where("shift_id").equals(Number(shiftId)).toArray();
-    const expenses = await db.expenses.where("shift_id").equals(Number(shiftId)).toArray();
-    const movements = await db.vehicle_stock_movements.where("shift_id").equals(Number(shiftId)).toArray();
+    const sales = shift.sales_id ? await db.users.get(Number(shift.sales_id)) : null;
+    const vehicle = shift.vehicle_id ? await db.vehicles.get(Number(shift.vehicle_id)) : null;
+
+    const visits = await db.visits.where("shift_id").equals(idNum).toArray();
+    const txs = await db.transactions.where("shift_id").equals(idNum).toArray();
+    const returns = await db.returns.where("shift_id").equals(idNum).toArray();
+
+    // Baca debt_payments secara aman tanpa bergantung pada index shift_id
+    const allDebtPayments = await db.debt_payments.toArray();
+    const debtPayments = allDebtPayments.filter((p) => Number(p.shift_id) === idNum);
+
+    const expenses = await db.expenses.where("shift_id").equals(idNum).toArray();
+    const movements = await db.vehicle_stock_movements.where("shift_id").equals(idNum).toArray();
     const products = await db.products.toArray();
     const outlets = await db.outlets.toArray();
 
     // Hitung KPI EC & Pindah Jadwal
     const ecVisits = visits.filter((v) => v.status_kunjungan === "effective_call");
     const validVisits = visits.filter(
-      (v) => v.status_kunjungan === "effective_call" || (v.status_kunjungan === "no_order" && v.dihitung_kunjungan_valid !== false)
+      (v) =>
+        v.status_kunjungan === "effective_call" ||
+        (v.status_kunjungan === "no_order" && v.dihitung_kunjungan_valid !== false)
     );
     const rescheduledVisits = visits.filter(
       (v) => Number(v.is_rescheduled) === 1 || v.status_kunjungan === "pindah_jadwal"
@@ -49,13 +57,23 @@ const AdminApp = {
     const strikeRate = validVisits.length > 0 ? (ecVisits.length / validVisits.length) * 100 : 0;
 
     // Keuangan & Cost Ratio
-    const omzetCash = txs.filter((t) => t.metode_bayar === "cash").reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
-    const omzetTransfer = txs.filter((t) => t.metode_bayar === "transfer").reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
-    const omzetKredit = txs.filter((t) => t.metode_bayar === "kredit").reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
+    const omzetCash = txs
+      .filter((t) => t.metode_bayar === "cash")
+      .reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
+    const omzetTransfer = txs
+      .filter((t) => t.metode_bayar === "transfer")
+      .reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
+    const omzetKredit = txs
+      .filter((t) => t.metode_bayar === "kredit")
+      .reduce((a, b) => a + Number(b.total_tagihan || 0), 0);
     const totalOmzet = omzetCash + omzetTransfer + omzetKredit;
 
-    const pelunasanCash = debtPayments.filter((p) => p.metode_terima === "cash").reduce((a, b) => a + Number(b.nominal || 0), 0);
-    const pelunasanTransfer = debtPayments.filter((p) => p.metode_terima === "transfer").reduce((a, b) => a + Number(b.nominal || 0), 0);
+    const pelunasanCash = debtPayments
+      .filter((p) => p.metode_terima === "cash")
+      .reduce((a, b) => a + Number(b.nominal || 0), 0);
+    const pelunasanTransfer = debtPayments
+      .filter((p) => p.metode_terima === "transfer")
+      .reduce((a, b) => a + Number(b.nominal || 0), 0);
 
     const returBayarTokoCash = returns
       .filter((r) => r.tipe_selisih === "bayar_toko" && r.metode_selisih === "cash")
@@ -67,11 +85,14 @@ const AdminApp = {
       .filter((r) => r.tipe_selisih === "ganti_sales")
       .reduce((a, b) => a + Number(b.selisih_nominal || 0), 0);
 
-    const totalBiayaCash = expenses.filter((e) => e.metode_bayar === "cash").reduce((a, b) => a + Number(b.nominal || 0), 0);
+    const totalBiayaCash = expenses
+      .filter((e) => e.metode_bayar === "cash")
+      .reduce((a, b) => a + Number(b.nominal || 0), 0);
     const totalBiayaAll = expenses.reduce((a, b) => a + Number(b.nominal || 0), 0);
     const costRatio = totalOmzet > 0 ? (totalBiayaAll / totalOmzet) * 100 : 0;
 
-    const wajibSetorTunai = omzetCash + pelunasanCash + returBayarTokoCash - totalBiayaCash - returGantiSales;
+    const wajibSetorTunai =
+      omzetCash + pelunasanCash + returBayarTokoCash - totalBiayaCash - returGantiSales;
     const totalTransfer = omzetTransfer + pelunasanTransfer + returBayarTokoTransfer;
 
     // Audit Stok per Produk
@@ -100,7 +121,9 @@ const AdminApp = {
           terjual,
           keluarGanti,
           sisaBungkus,
-          sisaLabel: UnitConverter.formatLabel(sisaBungkus, prod)
+          sisaLabel: window.UnitConverter
+            ? UnitConverter.formatLabel(sisaBungkus, prod)
+            : `${sisaBungkus} bungkus`
         };
       })
       .filter((s) => s.loadingAwal > 0 || s.returMasuk > 0 || s.terjual > 0 || s.keluarGanti > 0);
@@ -116,7 +139,7 @@ const AdminApp = {
 
       return {
         no: idx + 1,
-        waktu: v.waktu_kunjungan ? v.waktu_kunjungan.slice(11, 16) : "-",
+        waktu: v.waktu_kunjungan ? String(v.waktu_kunjungan).slice(11, 16) : "-",
         kode_toko: outlet?.kode_toko || "-",
         nama_toko: outlet?.nama_toko || "-",
         tier: outlet?.tier_harga || "-",
@@ -138,7 +161,9 @@ const AdminApp = {
     return {
       shift,
       salesName: sales?.nama || `Sales #${shift.sales_id}`,
-      vehicleLabel: vehicle ? `${vehicle.plat_nomor} (${vehicle.nama_kendaraan || vehicle.kode_kendaraan})` : "-",
+      vehicleLabel: vehicle
+        ? `${vehicle.plat_nomor} (${vehicle.nama_kendaraan || vehicle.kode_kendaraan})`
+        : "-",
       jarakKm,
       kpi: {
         totalKunjungan: visits.length,
@@ -202,7 +227,10 @@ const AdminApp = {
       ["Salesman", audit.salesName],
       ["Asisten Pendamping", audit.shift.asisten_nama || "-"],
       ["Kendaraan", audit.vehicleLabel],
-      ["KM Awal / Akhir / Tempuh", `${audit.shift.km_awal ?? 0} / ${audit.shift.km_akhir ?? "-"} / ${audit.jarakKm ?? "-"} km`],
+      [
+        "KM Awal / Akhir / Tempuh",
+        `${audit.shift.km_awal ?? 0} / ${audit.shift.km_akhir ?? "-"} / ${audit.jarakKm ?? "-"} km`
+      ],
       ["Status Shift", audit.shift.status_shift],
       [],
       ["INDIKATOR KINERJA (EC & JADWAL)"],
@@ -267,8 +295,8 @@ const AdminApp = {
       ...audit.returns.map((r) => ({
         Jenis: `Retur (${r.tipe_selisih})`,
         Waktu: r.tanggal,
-        Dari: `${r.item_retur?.nama_produk} (${r.item_retur?.label_qty})`,
-        Ke: `${r.item_pengganti?.nama_produk} (${r.item_pengganti?.label_qty})`,
+        Dari: `${r.item_retur?.nama_produk || "-"} (${r.item_retur?.label_qty || "-"})`,
+        Ke: `${r.item_pengganti?.nama_produk || "-"} (${r.item_pengganti?.label_qty || "-"})`,
         Keterangan: `Selisih Rp ${Number(r.selisih_nominal || 0).toLocaleString("id-ID")} (${r.metode_selisih})`
       }))
     ];
