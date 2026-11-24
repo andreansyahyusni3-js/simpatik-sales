@@ -126,8 +126,8 @@
         <form id="formProduct" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input type="hidden" id="prod_id" />
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Kode SKU *</label>
-            <input id="sku_kode" required placeholder="SKU-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Produk (Otomatis)</label>
+            <input id="sku_kode" readonly class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-mono text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Nama Produk *</label>
@@ -180,7 +180,7 @@
         <table class="w-full text-left text-xs sm:text-sm border-collapse">
           <thead>
             <tr class="border-b border-slate-200 text-slate-500">
-              <th class="py-2 pr-3">SKU</th>
+              <th class="py-2 pr-3">Kode</th>
               <th class="py-2 pr-3">Nama Produk</th>
               <th class="py-2 pr-3">Ritel/Bks</th>
               <th class="py-2 pr-3">Grosir/Bks</th>
@@ -201,8 +201,8 @@
         <form id="formOutlet" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input type="hidden" id="outlet_id" />
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Toko *</label>
-            <input id="kode_toko" required placeholder="TKO-001" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Toko (Otomatis)</label>
+            <input id="kode_toko" readonly class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-mono text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Nama Toko *</label>
@@ -282,8 +282,8 @@
         <form id="formVehicle" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input type="hidden" id="vehicle_id" />
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Kendaraan *</label>
-            <input id="kode_kendaraan" required placeholder="VEH-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode Kendaraan (Otomatis)</label>
+            <input id="kode_kendaraan" readonly class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-mono text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Plat Nomor *</label>
@@ -367,8 +367,8 @@
         <form id="formUser" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <input type="hidden" id="usr_id" />
           <div>
-            <label class="block text-xs font-medium text-slate-600 mb-1">Kode User *</label>
-            <input id="kode_user" required placeholder="USR-SALES-02" class="w-full px-3 py-2 rounded-xl border border-slate-300 text-sm" />
+            <label class="block text-xs font-medium text-slate-600 mb-1">Kode User (Otomatis)</label>
+            <input id="kode_user" readonly class="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50 text-slate-700 font-mono text-sm" />
           </div>
           <div>
             <label class="block text-xs font-medium text-slate-600 mb-1">Nama Lengkap *</label>
@@ -470,22 +470,6 @@
   </main>
 
   <script>
-window.addEventListener("error", (event) => {
-  const box = document.getElementById("notifBox");
-  if (box) {
-    box.textContent = "Error JS: " + event.message;
-    box.className = "p-3 rounded-xl text-sm font-medium block bg-red-50 text-red-700 border border-red-200";
-  }
-});
-
-window.addEventListener("unhandledrejection", (event) => {
-  const box = document.getElementById("notifBox");
-  if (box) {
-    box.textContent = "Error Async: " + (event.reason?.message || event.reason);
-    box.className = "p-3 rounded-xl text-sm font-medium block bg-red-50 text-red-700 border border-red-200";
-  }
-});
-    
     const fmtRp = (n) => "Rp " + Number(n || 0).toLocaleString("id-ID");
 
     function showNotif(msg, type = "success") {
@@ -496,6 +480,14 @@ window.addEventListener("unhandledrejection", (event) => {
         ? "bg-red-50 text-red-700 border border-red-200"
         : "bg-emerald-50 text-emerald-700 border border-emerald-200";
     }
+
+    window.addEventListener("error", (event) => {
+      showNotif("Error JS: " + event.message, "error");
+    });
+
+    window.addEventListener("unhandledrejection", (event) => {
+      showNotif("Error Async: " + (event.reason?.message || event.reason), "error");
+    });
 
     document.querySelectorAll(".tab-btn").forEach((btn) => {
       btn.addEventListener("click", () => {
@@ -508,6 +500,37 @@ window.addEventListener("unhandledrejection", (event) => {
         document.getElementById("tab-" + btn.dataset.tab).classList.remove("hidden");
       });
     });
+
+    async function refreshAutoCodes() {
+      const prods = await MasterHelper.getProducts();
+      const outlets = await MasterHelper.getOutlets();
+      const vehs = await MasterHelper.getVehicles();
+      const users = await MasterHelper.getUsers();
+
+      const nextNum = (rows, field) => {
+        let max = 0;
+        for (const r of rows) {
+          const m = String(r[field] || "").match(/-(\d+)$/);
+          if (m) max = Math.max(max, parseInt(m[1], 10));
+        }
+        return String(max + 1).padStart(3, "0");
+      };
+
+      if (!document.getElementById("prod_id").value) {
+        document.getElementById("sku_kode").value = `PRD-${nextNum(prods, "sku_kode")}`;
+      }
+      if (!document.getElementById("outlet_id").value) {
+        document.getElementById("kode_toko").value = `TKO-${nextNum(outlets, "kode_toko")}`;
+      }
+      if (!document.getElementById("vehicle_id").value) {
+        document.getElementById("kode_kendaraan").value = `KND-${nextNum(vehs, "kode_kendaraan")}`;
+      }
+      if (!document.getElementById("usr_id").value) {
+        const roleSel = document.getElementById("usr_role").value;
+        const pfx = roleSel === "admin" ? "USR-ADM" : "USR-SLS";
+        document.getElementById("kode_user").value = `${pfx}-${nextNum(users, "kode_user")}`;
+      }
+    }
 
     window.inspectShift = async (shiftId) => {
       const audit = await AdminApp.getShiftAudit(shiftId);
@@ -656,7 +679,13 @@ window.addEventListener("unhandledrejection", (event) => {
     }
 
     async function renderAll() {
-      await renderMonitoringAndDebts();
+      try {
+        if (window.AdminApp) {
+          await renderMonitoringAndDebts();
+        }
+      } catch (e) {
+        showNotif("Monitoring error: " + e.message, "error");
+      }
 
       const prods = await MasterHelper.getProducts();
       document.getElementById("tbodyProducts").innerHTML = prods.map((p) => `
@@ -752,11 +781,14 @@ window.addEventListener("unhandledrejection", (event) => {
           <span class="text-xs font-mono text-slate-500">${c.kode_biaya}</span>
         </li>
       `).join("");
+
+      await refreshAutoCodes();
     }
 
     document.getElementById("btnFilterShift").addEventListener("click", renderMonitoringAndDebts);
+    document.getElementById("usr_role").addEventListener("change", refreshAutoCodes);
 
-    // Master CRUD handlers (sama seperti Tahap 3)
+    // Product handlers
     window.editProduct = async (id) => {
       const p = await db.products.get(Number(id));
       if (!p) return;
@@ -773,7 +805,11 @@ window.addEventListener("unhandledrejection", (event) => {
       document.getElementById("isi_per_slop").value = p.isi_per_slop || 10;
     };
     window.removeProduct = async (id) => { await MasterHelper.deleteProduct(id); showNotif("Produk dihapus."); renderAll(); };
-    document.getElementById("btnResetProduct").addEventListener("click", () => { document.getElementById("formProduct").reset(); document.getElementById("prod_id").value = ""; });
+    document.getElementById("btnResetProduct").addEventListener("click", async () => {
+      document.getElementById("formProduct").reset();
+      document.getElementById("prod_id").value = "";
+      await refreshAutoCodes();
+    });
     document.getElementById("formProduct").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
@@ -796,6 +832,7 @@ window.addEventListener("unhandledrejection", (event) => {
       } catch (err) { showNotif(err.message, "error"); }
     });
 
+    // Outlet handlers
     window.editOutlet = async (id) => {
       const o = await db.outlets.get(Number(id));
       if (!o) return;
@@ -812,7 +849,11 @@ window.addEventListener("unhandledrejection", (event) => {
       document.getElementById("izinkan_kredit").checked = Boolean(o.izinkan_kredit);
     };
     window.removeOutlet = async (id) => { await MasterHelper.deleteOutlet(id); showNotif("Toko dihapus."); renderAll(); };
-    document.getElementById("btnResetOutlet").addEventListener("click", () => { document.getElementById("formOutlet").reset(); document.getElementById("outlet_id").value = ""; });
+    document.getElementById("btnResetOutlet").addEventListener("click", async () => {
+      document.getElementById("formOutlet").reset();
+      document.getElementById("outlet_id").value = "";
+      await refreshAutoCodes();
+    });
     document.getElementById("formOutlet").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
@@ -835,6 +876,7 @@ window.addEventListener("unhandledrejection", (event) => {
       } catch (err) { showNotif(err.message, "error"); }
     });
 
+    // Vehicle handlers
     window.editVehicle = async (id) => {
       const v = await db.vehicles.get(Number(id));
       if (!v) return;
@@ -853,7 +895,11 @@ window.addEventListener("unhandledrejection", (event) => {
       document.getElementById("veh_status").value = v.status_aktif || "aktif";
     };
     window.removeVehicle = async (id) => { await MasterHelper.deleteVehicle(id); showNotif("Kendaraan dihapus."); renderAll(); };
-    document.getElementById("btnResetVehicle").addEventListener("click", () => { document.getElementById("formVehicle").reset(); document.getElementById("vehicle_id").value = ""; });
+    document.getElementById("btnResetVehicle").addEventListener("click", async () => {
+      document.getElementById("formVehicle").reset();
+      document.getElementById("vehicle_id").value = "";
+      await refreshAutoCodes();
+    });
     document.getElementById("formVehicle").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
@@ -878,6 +924,7 @@ window.addEventListener("unhandledrejection", (event) => {
       } catch (err) { showNotif(err.message, "error"); }
     });
 
+    // User handlers
     window.editUser = async (id) => {
       const u = await db.users.get(Number(id));
       if (!u) return;
@@ -891,7 +938,11 @@ window.addEventListener("unhandledrejection", (event) => {
       document.getElementById("usr_status").value = u.status_aktif || "aktif";
     };
     window.removeUser = async (id) => { await MasterHelper.deleteUser(id); showNotif("Pengguna dihapus."); renderAll(); };
-    document.getElementById("btnResetUser").addEventListener("click", () => { document.getElementById("formUser").reset(); document.getElementById("usr_id").value = ""; });
+    document.getElementById("btnResetUser").addEventListener("click", async () => {
+      document.getElementById("formUser").reset();
+      document.getElementById("usr_id").value = "";
+      await refreshAutoCodes();
+    });
     document.getElementById("formUser").addEventListener("submit", async (e) => {
       e.preventDefault();
       try {
