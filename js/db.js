@@ -284,3 +284,20 @@ window.db = db;
 window.UnitConverter = UnitConverter;
 window.PricingHelper = PricingHelper;
 window.SeedHelper = SeedHelper;
+
+// Versi 2: Menambahkan indeks shift_id pada debt_payments untuk audit shift
+db.version(2).stores({
+  users: "++id, kode_user, nama, username, role, kode_rute, kendaraan_id, status_aktif",
+  products: "++id, sku_kode, nama_produk, kategori_lini, status_aktif",
+  outlets: "++id, kode_toko, nama_toko, kode_djo, sales_id, tier_harga, status_toko",
+  vehicles: "++id, kode_kendaraan, plat_nomor, sales_id, status_aktif",
+  no_order_reasons: "++id, kode_alasan, dihitung_kunjungan_valid, status_aktif",
+  expense_categories: "++id, kode_biaya, status_aktif",
+  djo_shifts: "++id, kode_djo, tanggal, sales_id, asisten_nama, vehicle_id, status_shift, synced",
+  visits: "++id, shift_id, tanggal, kode_djo, outlet_id, sales_id, status_kunjungan, reason_id, is_rescheduled, synced",
+  transactions: "++id, no_nota, shift_id, visit_id, tanggal, outlet_id, sales_id, metode_bayar, status_bayar, synced",
+  returns: "++id, no_retur, shift_id, visit_id, tanggal, outlet_id, sales_id, tipe_selisih, synced",
+  debt_payments: "++id, no_bayar, shift_id, transaction_id, outlet_id, sales_id, tanggal, metode_terima, synced",
+  vehicle_stock_movements: "++id, shift_id, tanggal, vehicle_id, product_id, jenis_mutasi, synced",
+  expenses: "++id, shift_id, tanggal, sales_id, category_id, metode_bayar, synced"
+});
